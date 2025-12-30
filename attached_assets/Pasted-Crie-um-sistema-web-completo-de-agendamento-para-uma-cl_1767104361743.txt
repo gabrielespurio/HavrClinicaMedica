@@ -1,0 +1,156 @@
+Crie um sistema web completo de agendamento para uma clínica médica, totalmente em português do Brasil, com foco em organização, regras de negócio bem definidas e uma experiência de uso semelhante ao Google Agenda.
+
+O sistema deve possuir dois módulos principais:
+
+Cadastro de Pacientes
+
+Agenda / Agendamentos
+
+🔹 Módulo 1 – Cadastro de Pacientes
+
+Implemente um módulo de gerenciamento de pacientes, contendo:
+
+Funcionalidades
+
+Cadastrar, editar, visualizar e desativar pacientes
+
+Controle de status do paciente:
+
+Ativo
+
+Inativo
+
+Controle de período de plano:
+
+Data de início do plano
+
+Data de término do plano
+
+Definição de intervalo de tempo permitido para agendamento de consultas
+
+Histórico de consultas do paciente
+
+Campos do paciente
+
+Nome completo
+
+CPF
+
+RG
+
+Telefone
+
+E-mail
+
+Status (Ativo / Inativo)
+
+Endereço completo:
+
+CEP
+
+Estado
+
+Cidade
+
+Bairro
+
+Rua
+
+Número
+
+🔹 Regra técnica obrigatória:
+Ao informar o CEP, o sistema deve consumir uma API de CEP (ex: ViaCEP) para preencher automaticamente Estado, Cidade, Bairro e Rua.
+
+🔹 Módulo 2 – Agenda / Agendamentos
+
+Implemente um módulo de agenda no estilo Google Agenda, permitindo visualizar os agendamentos:
+
+Por mês
+
+Por semana
+
+Por ano
+
+Tipos de agendamento
+
+Consulta
+
+Retorno
+
+Aplicação de Tirzepatida
+
+Aplicação
+
+Campos do agendamento
+
+Paciente
+
+Tipo de agendamento
+
+Data
+
+Horário
+
+Médico / Profissional responsável (campo apenas para leitura, não editável pelo usuário)
+
+🔒 Regras de Negócio (Obrigatórias)
+
+Qualquer tipo de aplicação:
+
+Deve ser automaticamente atribuída a uma Enfermeira
+
+Consulta e Retorno:
+
+Devem ser automaticamente atribuídas a um Médico
+
+O usuário não pode escolher manualmente o profissional
+
+O sistema deve definir automaticamente o profissional conforme o tipo de agendamento
+
+Pacientes com status Inativo não podem realizar agendamentos
+
+O paciente só pode agendar se:
+
+O plano estiver ativo
+
+O intervalo mínimo entre consultas for respeitado
+
+🎨 Interface e Experiência do Usuário (UI/UX)
+
+Interface moderna, limpa e profissional
+
+Layout intuitivo e fácil de usar
+
+Agenda visual semelhante ao Google Agenda
+
+Validações em tempo real
+
+Mensagens claras de erro e sucesso
+
+Sistema totalmente em português do Brasil
+
+⚙️ Considerações Técnicas
+
+Código organizado e bem estruturado
+
+Backend com API REST
+
+Banco de dados relacional
+
+Regras de negócio validadas no backend
+
+Frontend consumindo a API
+
+Estrutura preparada para futuras expansões
+
+🎯 Resultado Esperado
+
+O sistema final deve permitir:
+
+Gerenciar pacientes com controle de plano e status
+
+Visualizar e gerenciar agendamentos em formato de calendário
+
+Garantir que aplicações sejam realizadas por enfermeiras e consultas/retornos por médicos
+
+Operar 100% em português do Brasil

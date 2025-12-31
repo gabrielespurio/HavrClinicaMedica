@@ -31,6 +31,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { PatientHistory } from "@/components/patients/PatientHistory";
 
 export default function Patients() {
   const { patients, updatePatient } = useStore();
@@ -80,17 +87,37 @@ export default function Patients() {
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
-                  {editingPatient ? "Editar Paciente" : "Novo Paciente"}
+                  {editingPatient ? "Dados do Paciente" : "Novo Paciente"}
                 </DialogTitle>
                 <DialogDescription>
-                  Preencha os dados do paciente. O endereço será preenchido
-                  automaticamente pelo CEP.
+                  {editingPatient 
+                    ? "Visualize os dados e histórico ou edite as informações." 
+                    : "Preencha os dados do paciente. O endereço será preenchido automaticamente pelo CEP."}
                 </DialogDescription>
               </DialogHeader>
-              <PatientForm
-                patient={editingPatient}
-                onSuccess={() => setIsDialogOpen(false)}
-              />
+
+              {editingPatient ? (
+                <Tabs defaultValue="details" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="details">Dados Cadastrais</TabsTrigger>
+                    <TabsTrigger value="history">Histórico de Atendimentos</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="details">
+                    <PatientForm
+                      patient={editingPatient}
+                      onSuccess={() => setIsDialogOpen(false)}
+                    />
+                  </TabsContent>
+                  <TabsContent value="history">
+                    <PatientHistory patientId={editingPatient.id} />
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                <PatientForm
+                  patient={null}
+                  onSuccess={() => setIsDialogOpen(false)}
+                />
+              )}
             </DialogContent>
           </Dialog>
         </div>

@@ -127,7 +127,7 @@ export default function Agenda() {
   };
 
   const renderTimeGridView = (days: Date[]) => {
-    const hours = Array.from({ length: 13 }, (_, i) => i + 7); // 7am to 7pm
+    const hours = Array.from({ length: 15 }, (_, i) => i + 7); // 7am to 9pm (21:00)
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-card shadow-sm overflow-hidden">
@@ -203,9 +203,9 @@ export default function Agenda() {
                              const aptDate = parseISO(apt.date);
                              const hour = getHours(aptDate);
                              // Simple positioning: assume standard duration or grid alignment
-                             // If hour < 7 or > 19, it might be hidden, but for prototype we assume valid range
+                             // If hour < 7 or > 21, it might be hidden
                              const topOffset = (hour - 7) * 5; // 5rem per hour (h-20 = 5rem)
-                             if (hour < 7 || hour > 19) return null;
+                             if (hour < 7 || hour > 21) return null;
                              
                              return (
                                  <div

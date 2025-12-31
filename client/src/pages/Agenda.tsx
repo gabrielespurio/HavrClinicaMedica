@@ -131,8 +131,8 @@ export default function Agenda() {
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-card shadow-sm overflow-hidden">
-        <div className="grid border-b bg-muted/10" style={{ gridTemplateColumns: `3rem repeat(${days.length}, 1fr)` }}>
-          <div className="p-2 border-r text-center text-xs text-muted-foreground font-medium pt-8">
+        <div className="grid border-b bg-muted/10" style={{ gridTemplateColumns: `4rem repeat(${days.length}, 1fr)` }}>
+          <div className="p-2 border-r text-center text-[10px] text-muted-foreground font-medium flex items-end justify-center pb-2">
             GMT-3
           </div>
           {days.map((day) => (
@@ -161,7 +161,7 @@ export default function Agenda() {
         </div>
         
         <div className="flex-1 overflow-y-auto">
-          <div className="grid" style={{ gridTemplateColumns: `3rem repeat(${days.length}, 1fr)` }}>
+          <div className="grid" style={{ gridTemplateColumns: `4rem repeat(${days.length}, 1fr)` }}>
              {/* Time Column */}
              <div className="border-r bg-muted/5">
                 {hours.map((hour) => (

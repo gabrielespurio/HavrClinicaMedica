@@ -313,7 +313,10 @@ export default function Agenda() {
              
              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button onClick={() => { setSelectedSlot(new Date()); }} className="shadow-sm hover-elevate">
+                    <Button onClick={() => { 
+                      setEditingAppointment(null);
+                      setSelectedSlot(new Date()); 
+                    }} className="shadow-sm hover-elevate">
                         <Plus className="mr-2 h-4 w-4" /> Novo Agendamento
                     </Button>
                 </DialogTrigger>

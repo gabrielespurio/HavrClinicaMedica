@@ -42,6 +42,7 @@ interface AppState {
   updatePatient: (id: string, patient: Partial<Patient>) => void;
   
   addAppointment: (appointment: Appointment) => void;
+  updateAppointment: (id: string, appointment: Partial<Appointment>) => void;
   
   getPatient: (id: string) => Patient | undefined;
 }
@@ -149,6 +150,10 @@ export const useStore = create<AppState>()(
       
       addAppointment: (appointment) => set((state) => ({
         appointments: [...state.appointments, { ...appointment, id: crypto.randomUUID() }]
+      })),
+      
+      updateAppointment: (id, updatedAppointment) => set((state) => ({
+        appointments: state.appointments.map(a => a.id === id ? { ...a, ...updatedAppointment } : a)
       })),
       
       getPatient: (id) => get().patients.find(p => p.id === id),

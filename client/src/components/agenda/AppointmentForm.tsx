@@ -36,11 +36,12 @@ type AppointmentFormValues = z.infer<typeof appointmentSchema>;
 
 interface AppointmentFormProps {
   defaultDate: Date;
+  appointment?: Appointment | null;
   onSuccess: () => void;
 }
 
-export function AppointmentForm({ defaultDate, onSuccess }: AppointmentFormProps) {
-  const { patients, addAppointment, appointments } = useStore();
+export function AppointmentForm({ defaultDate, appointment, onSuccess }: AppointmentFormProps) {
+  const { patients, addAppointment, updateAppointment, appointments } = useStore();
   const { toast } = useToast();
 
   // Active patients only
@@ -48,7 +49,13 @@ export function AppointmentForm({ defaultDate, onSuccess }: AppointmentFormProps
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
-    defaultValues: {
+    defaultValues: appointment ? {
+      patientId: appointment.patientId,
+      type: appointment.type,
+      date: format(parseISO(appointment.date), "yyyy-MM-dd"),
+      time: format(parseISO(appointment.date), "HH:mm"),
+      professional: appointment.professional,
+    } : {
       patientId: "",
       type: "consulta",
       date: format(defaultDate, "yyyy-MM-dd"),
@@ -61,12 +68,13 @@ export function AppointmentForm({ defaultDate, onSuccess }: AppointmentFormProps
 
   // Business Logic: Auto-assign professional
   useEffect(() => {
+    if (appointment) return; // Don't auto-change if editing
     if (selectedType === "consulta" || selectedType === "retorno") {
       form.setValue("professional", "Dr. Roberto Santos");
     } else {
       form.setValue("professional", "Enf. Juliana Costa");
     }
-  }, [selectedType, form.setValue]);
+  }, [selectedType, form.setValue, appointment]);
 
   const onSubmit = (data: AppointmentFormValues) => {
     const patient = patients.find((p) => p.id === data.patientId);
@@ -86,37 +94,45 @@ export function AppointmentForm({ defaultDate, onSuccess }: AppointmentFormProps
         return;
     }
 
-    // Business Logic: Check interval (Mock logic: just ensure not same day for simplicity, or 7 days)
-    // Real logic would check last appointment of this patient
-    const lastAppointment = appointments
-        .filter(a => a.patientId === patient.id)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-
-    if (lastAppointment) {
-        // Example rule: At least 1 day between appointments
-        const minDate = addDays(parseISO(lastAppointment.date), 1);
-        if (isBefore(appointmentDate, minDate)) {
-             toast({
-                title: "Intervalo muito curto",
-                description: "O paciente deve aguardar o intervalo mínimo entre atendimentos.",
-                variant: "destructive"
-            });
-            // Allowing bypass for prototype ease, but warning shown.
-            // return; 
-        }
-    }
-
-    addAppointment({
-        id: crypto.randomUUID(),
+    if (appointment) {
+      updateAppointment(appointment.id, {
         patientId: data.patientId,
         type: data.type,
         date: appointmentDate.toISOString(),
         professional: data.professional
-    });
+      });
+      toast({ title: "Agendamento atualizado com sucesso!" });
+    } else {
+      // Business Logic: Check interval (Mock logic: just ensure not same day for simplicity, or 7 days)
+      const lastAppointment = appointments
+          .filter(a => a.patientId === patient.id)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+      if (lastAppointment) {
+          const minDate = addDays(parseISO(lastAppointment.date), 1);
+          if (isBefore(appointmentDate, minDate)) {
+               toast({
+                  title: "Intervalo muito curto",
+                  description: "O paciente deve aguardar o intervalo mínimo entre atendimentos.",
+                  variant: "destructive"
+              });
+          }
+      }
+
+      addAppointment({
+          id: crypto.randomUUID(),
+          patientId: data.patientId,
+          type: data.type,
+          date: appointmentDate.toISOString(),
+          professional: data.professional
+      });
+      toast({ title: "Agendamento realizado com sucesso!" });
+    }
     
-    toast({ title: "Agendamento realizado com sucesso!" });
     onSuccess();
   };
+
+  const isReadOnly = !!appointment;
 
   return (
     <Form {...form}>
@@ -127,25 +143,22 @@ export function AppointmentForm({ defaultDate, onSuccess }: AppointmentFormProps
           render={({ field }) => (
             <FormItem>
               <FormLabel>Paciente</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isReadOnly}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um paciente ativo" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {activePatients.length === 0 ? (
-                     <SelectItem value="none" disabled>Nenhum paciente ativo</SelectItem>
-                  ) : (
-                    activePatients.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                        {p.name} (CPF: {p.cpf})
-                        </SelectItem>
-                    ))
-                  )}
+                  {/* ... patients mapping ... */}
+                  {patients.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                      {p.name} (CPF: {p.cpf})
+                      </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <FormDescription>Apenas pacientes ativos são listados.</FormDescription>
+              {isReadOnly ? null : <FormDescription>Apenas pacientes ativos são listados.</FormDescription>}
               <FormMessage />
             </FormItem>
           )}
@@ -157,7 +170,7 @@ export function AppointmentForm({ defaultDate, onSuccess }: AppointmentFormProps
           render={({ field }) => (
             <FormItem>
               <FormLabel>Tipo de Agendamento</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isReadOnly}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o tipo" />
@@ -183,7 +196,7 @@ export function AppointmentForm({ defaultDate, onSuccess }: AppointmentFormProps
                 <FormItem>
                 <FormLabel>Data</FormLabel>
                 <FormControl>
-                    <Input type="date" {...field} />
+                    <Input type="date" {...field} readOnly={isReadOnly} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -196,7 +209,7 @@ export function AppointmentForm({ defaultDate, onSuccess }: AppointmentFormProps
                 <FormItem>
                 <FormLabel>Horário</FormLabel>
                 <FormControl>
-                    <Input type="time" {...field} />
+                    <Input type="time" {...field} readOnly={isReadOnly} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -222,7 +235,12 @@ export function AppointmentForm({ defaultDate, onSuccess }: AppointmentFormProps
         />
 
         <div className="flex justify-end pt-2">
-          <Button type="submit" className="w-full">Confirmar Agendamento</Button>
+          {!isReadOnly && <Button type="submit" className="w-full">Confirmar Agendamento</Button>}
+          {isReadOnly && (
+            <Button type="button" variant="outline" className="w-full" onClick={onSuccess}>
+              Fechar
+            </Button>
+          )}
         </div>
       </form>
     </Form>

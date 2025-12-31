@@ -49,6 +49,7 @@ export default function Agenda() {
   const [viewMode, setViewMode] = useState<ViewMode>("week"); // Default to week view like Google Calendar
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   const { appointments } = useStore();
 
@@ -67,7 +68,15 @@ export default function Agenda() {
   const handleToday = () => setViewDate(new Date());
 
   const handleSlotClick = (date: Date) => {
+    setEditingAppointment(null);
     setSelectedSlot(date);
+    setIsDialogOpen(true);
+  };
+
+  const handleAppointmentClick = (e: React.MouseEvent, apt: Appointment) => {
+    e.stopPropagation();
+    setEditingAppointment(apt);
+    setSelectedSlot(parseISO(apt.date));
     setIsDialogOpen(true);
   };
 
@@ -111,7 +120,9 @@ export default function Agenda() {
               </div>
               <div className="mt-2 space-y-1">
                 {dayAppointments.slice(0, 3).map((apt) => (
-                  <AppointmentBadge key={apt.id} appointment={apt} compact />
+                  <div key={apt.id} onClick={(e) => handleAppointmentClick(e, apt)}>
+                    <AppointmentBadge appointment={apt} compact />
+                  </div>
                 ))}
                 {dayAppointments.length > 3 && (
                   <div className="text-xs text-muted-foreground pl-1">
@@ -212,6 +223,7 @@ export default function Agenda() {
                                      key={apt.id}
                                      className="absolute inset-x-1 p-1 z-10"
                                      style={{ top: `${topOffset}rem`, height: '4.8rem' }}
+                                     onClick={(e) => handleAppointmentClick(e, apt)}
                                  >
                                     <AppointmentBadge appointment={apt} />
                                  </div>
@@ -307,10 +319,11 @@ export default function Agenda() {
                 </DialogTrigger>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Novo Agendamento</DialogTitle>
+                        <DialogTitle>{editingAppointment ? "Detalhes do Agendamento" : "Novo Agendamento"}</DialogTitle>
                     </DialogHeader>
                     <AppointmentForm 
                         defaultDate={selectedSlot || new Date()} 
+                        appointment={editingAppointment}
                         onSuccess={() => setIsDialogOpen(false)} 
                     />
                 </DialogContent>

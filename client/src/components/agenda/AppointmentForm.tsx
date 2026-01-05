@@ -20,16 +20,17 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { usePatients } from "@/hooks/usePatients";
-import { useCreateAppointment, useUpdateAppointment, type Appointment, type AppointmentType } from "@/hooks/useAppointments";
+import { useCreateAppointment, useUpdateAppointment, type Appointment } from "@/hooks/useAppointments";
+import { useAppointmentTypes, useProfessionals } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO, isBefore, getDay } from "date-fns";
-import { useEffect } from "react";
+import { format, isBefore, getDay } from "date-fns";
+import { useEffect, useMemo } from "react";
 import { Loader2, Clock, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const appointmentSchema = z.object({
   patientId: z.string().min(1, "Selecione um paciente"),
-  type: z.enum(["consulta", "retorno", "tirzepatida", "aplicacao"]),
+  type: z.string().min(1, "Selecione o tipo de agendamento"),
   date: z.string(),
   time: z.string(),
   professional: z.string(),
@@ -87,26 +88,43 @@ function getBusinessHoursForDate(date: string): string {
 
 export function AppointmentForm({ defaultDate, appointment, onSuccess }: AppointmentFormProps) {
   const { data: patients, isLoading: isLoadingPatients } = usePatients();
+  const { data: appointmentTypes, isLoading: isLoadingTypes } = useAppointmentTypes();
+  const { data: professionals, isLoading: isLoadingProfessionals } = useProfessionals();
   const createAppointment = useCreateAppointment();
   const updateAppointment = useUpdateAppointment();
   const { toast } = useToast();
 
   const activePatients = (patients || []).filter((p) => p.status === "active");
+  const activeTypes = (appointmentTypes || []).filter((t) => t.isActive);
+  const activeProfessionals = (professionals || []).filter((p) => p.status === "active");
+
+  const professionalMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of activeProfessionals) {
+      map.set(p.id, p.name);
+    }
+    return map;
+  }, [activeProfessionals]);
+
+  const defaultType = activeTypes.length > 0 ? activeTypes[0].slug : "consulta";
+  const defaultProfessional = activeTypes.length > 0 && activeTypes[0].defaultProfessionalId
+    ? professionalMap.get(activeTypes[0].defaultProfessionalId) || activeProfessionals[0]?.name || ""
+    : activeProfessionals[0]?.name || "";
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: appointment ? {
       patientId: appointment.patientId,
-      type: appointment.type as AppointmentType,
+      type: appointment.type,
       date: appointment.date,
       time: appointment.time.slice(0, 5),
       professional: appointment.professional,
     } : {
       patientId: "",
-      type: "consulta",
+      type: defaultType,
       date: format(defaultDate, "yyyy-MM-dd"),
       time: format(defaultDate, "HH:mm"),
-      professional: "Dr. Roberto Santos",
+      professional: defaultProfessional,
     },
   });
 
@@ -118,14 +136,43 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   const businessHours = selectedDate ? getBusinessHoursForDate(selectedDate) : "";
   const validation = selectedDate && selectedTime ? validateBusinessHours(selectedDate, selectedTime) : { valid: true, message: "" };
 
+  // Reset form with proper defaults when data loads
   useEffect(() => {
     if (appointment) return;
-    if (selectedType === "consulta" || selectedType === "retorno") {
-      form.setValue("professional", "Dr. Roberto Santos");
-    } else {
-      form.setValue("professional", "Enf. Juliana Costa");
+    if (activeTypes.length === 0 || activeProfessionals.length === 0) return;
+    
+    const currentType = form.getValues("type");
+    const currentProfessional = form.getValues("professional");
+    
+    // Only reset if values are still at initial/empty state
+    if (!currentType || currentType === "consulta" || !currentProfessional) {
+      const firstType = activeTypes[0];
+      const defaultProfName = firstType.defaultProfessionalId
+        ? professionalMap.get(firstType.defaultProfessionalId) || activeProfessionals[0]?.name
+        : activeProfessionals[0]?.name;
+      
+      if (!currentType || !activeTypes.find(t => t.slug === currentType)) {
+        form.setValue("type", firstType.slug);
+      }
+      if (!currentProfessional && defaultProfName) {
+        form.setValue("professional", defaultProfName);
+      }
     }
-  }, [selectedType, form, appointment]);
+  }, [activeTypes, activeProfessionals, professionalMap, form, appointment]);
+
+  // Update professional when type changes
+  useEffect(() => {
+    if (appointment) return;
+    const selectedTypeConfig = activeTypes.find(t => t.slug === selectedType);
+    if (selectedTypeConfig) {
+      const profName = selectedTypeConfig.defaultProfessionalId
+        ? professionalMap.get(selectedTypeConfig.defaultProfessionalId)
+        : activeProfessionals[0]?.name;
+      if (profName) {
+        form.setValue("professional", profName);
+      }
+    }
+  }, [selectedType, form, appointment, activeTypes, professionalMap, activeProfessionals]);
 
   const onSubmit = async (data: AppointmentFormValues) => {
     const hourValidation = validateBusinessHours(data.date, data.time);
@@ -199,8 +246,9 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   };
 
   const isReadOnly = !!appointment;
+  const isLoading = isLoadingPatients || isLoadingTypes || isLoadingProfessionals;
 
-  if (isLoadingPatients) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -256,10 +304,11 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="consulta">Consulta</SelectItem>
-                  <SelectItem value="retorno">Retorno</SelectItem>
-                  <SelectItem value="tirzepatida">Tirzepatida</SelectItem>
-                  <SelectItem value="aplicacao">Aplicação</SelectItem>
+                  {activeTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.slug} data-testid={`option-type-${type.slug}`}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormMessage />

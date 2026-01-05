@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, Clock, FileText, Loader2 } from "lucide-react";
+import { Calendar, Clock, FileText, Loader2, User, Stethoscope } from "lucide-react";
 
 interface PatientHistoryProps {
   patientId: string;
@@ -19,20 +19,18 @@ interface PatientHistoryProps {
 export function PatientHistory({ patientId }: PatientHistoryProps) {
   const { data: appointments, isLoading } = useAppointments({ patientId });
 
-  const statusLabels: Record<string, string> = {
-    scheduled: "Agendado",
-    confirmed: "Confirmado",
-    completed: "Concluído",
-    cancelled: "Cancelado",
-    no_show: "Não compareceu",
+  const typeLabels: Record<string, string> = {
+    consulta: "Consulta",
+    retorno: "Retorno",
+    tirzepatida: "Tirzepatida",
+    aplicacao: "Aplicação",
   };
 
-  const statusColors: Record<string, string> = {
-    scheduled: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-    confirmed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-    completed: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
-    cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-    no_show: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+  const typeColors: Record<string, string> = {
+    consulta: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    retorno: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+    tirzepatida: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+    aplicacao: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
   };
 
   if (isLoading) {
@@ -59,10 +57,10 @@ export function PatientHistory({ patientId }: PatientHistoryProps) {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
-              <TableHead className="w-[140px]">Data</TableHead>
-              <TableHead className="w-[100px]">Horário</TableHead>
-              <TableHead className="w-[100px]">Duração</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="w-[130px]">Data</TableHead>
+              <TableHead className="w-[80px]">Horário</TableHead>
+              <TableHead className="w-[110px]">Tipo</TableHead>
+              <TableHead>Profissional</TableHead>
               <TableHead>Observações</TableHead>
             </TableRow>
           </TableHeader>
@@ -82,19 +80,22 @@ export function PatientHistory({ patientId }: PatientHistoryProps) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <span className="text-sm text-muted-foreground">{apt.duration} min</span>
-                </TableCell>
-                <TableCell>
                   <Badge 
                     variant="secondary" 
-                    className={statusColors[apt.status] || statusColors.scheduled}
+                    className={typeColors[apt.type] || typeColors.consulta}
                   >
-                    {statusLabels[apt.status] || apt.status}
+                    {typeLabels[apt.type] || apt.type}
                   </Badge>
                 </TableCell>
                 <TableCell>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <User className="mr-1.5 h-3.5 w-3.5" />
+                    {apt.professional || "-"}
+                  </div>
+                </TableCell>
+                <TableCell>
                   {apt.notes ? (
-                    <div className="flex items-center text-sm text-muted-foreground max-w-[200px] truncate">
+                    <div className="flex items-center text-sm text-muted-foreground max-w-[180px] truncate">
                       <FileText className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
                       <span className="truncate">{apt.notes}</span>
                     </div>

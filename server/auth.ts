@@ -21,6 +21,7 @@ const pool = new Pool({
 });
 
 export function setupAuth(app: Express) {
+  app.set("trust proxy", 1);
   // Session configuration
   app.use(
     session({
@@ -36,6 +37,7 @@ export function setupAuth(app: Express) {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
       },
     })
   );

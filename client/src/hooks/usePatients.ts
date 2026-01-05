@@ -18,12 +18,26 @@ export type InsertPatient = Omit<Patient, "id" | "createdAt" | "updatedAt">;
 export function usePatients() {
   return useQuery<Patient[]>({
     queryKey: ["/api/patients"],
+    queryFn: async () => {
+      const response = await fetch("/api/patients", { credentials: "include" });
+      if (!response.ok) {
+        throw new Error("Failed to fetch patients");
+      }
+      return response.json();
+    },
   });
 }
 
 export function usePatient(id: string) {
   return useQuery<Patient>({
-    queryKey: ["/api/patients", id],
+    queryKey: ["/api/patients", "single", id],
+    queryFn: async () => {
+      const response = await fetch(`/api/patients/${id}`, { credentials: "include" });
+      if (!response.ok) {
+        throw new Error("Failed to fetch patient");
+      }
+      return response.json();
+    },
     enabled: !!id,
   });
 }

@@ -5,21 +5,13 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useStore, type Patient } from "@/lib/store";
+import { useCreatePatient, useUpdatePatient, type Patient } from "@/hooks/usePatients";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
@@ -28,20 +20,10 @@ import { maskCPF, maskRG, maskPhone, maskCEP } from "@/lib/masks";
 const patientSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   cpf: z.string().min(14, "CPF inválido"),
-  rg: z.string().min(12, "RG inválido"),
+  birthDate: z.string().min(1, "Data de nascimento obrigatória"),
   phone: z.string().min(14, "Telefone inválido"),
-  email: z.string().email("E-mail inválido"),
-  status: z.enum(["active", "inactive"]),
-  planStartDate: z.string(),
-  planEndDate: z.string(),
-  address: z.object({
-    cep: z.string().min(9, "CEP inválido"),
-    state: z.string().min(2, "Estado obrigatório"),
-    city: z.string().min(2, "Cidade obrigatória"),
-    neighborhood: z.string().min(2, "Bairro obrigatório"),
-    street: z.string().min(2, "Rua obrigatória"),
-    number: z.string().min(1, "Número obrigatório"),
-  }),
+  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
+  address: z.string().optional(),
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
@@ -52,76 +34,60 @@ interface PatientFormProps {
 }
 
 export function PatientForm({ patient, onSuccess }: PatientFormProps) {
-  const { addPatient, updatePatient } = useStore();
+  const createPatient = useCreatePatient();
+  const updatePatient = useUpdatePatient();
   const { toast } = useToast();
   const [isLoadingCep, setIsLoadingCep] = useState(false);
 
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
-    defaultValues: patient || {
+    defaultValues: patient ? {
+      name: patient.name,
+      cpf: patient.cpf,
+      birthDate: patient.birthDate,
+      phone: patient.phone,
+      email: patient.email || "",
+      address: patient.address || "",
+    } : {
       name: "",
       cpf: "",
-      rg: "",
+      birthDate: "",
       phone: "",
       email: "",
-      status: "active",
-      planStartDate: new Date().toISOString().split("T")[0],
-      planEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-        .toISOString()
-        .split("T")[0],
-      address: {
-        cep: "",
-        state: "",
-        city: "",
-        neighborhood: "",
-        street: "",
-        number: "",
-      },
+      address: "",
     },
   });
 
-  const handleCepBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
-    const cep = e.target.value.replace(/\D/g, "");
-    if (cep.length !== 8) return;
+  const isPending = createPatient.isPending || updatePatient.isPending;
 
-    setIsLoadingCep(true);
+  const onSubmit = async (data: PatientFormValues) => {
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = await response.json();
-
-      if (data.erro) {
-        toast({
-          title: "CEP não encontrado",
-          variant: "destructive",
+      if (patient) {
+        await updatePatient.mutateAsync({ 
+          id: patient.id, 
+          data: {
+            ...data,
+            email: data.email || null,
+            address: data.address || null,
+          }
         });
-        return;
+        toast({ title: "Paciente atualizado com sucesso!" });
+      } else {
+        await createPatient.mutateAsync({
+          ...data,
+          email: data.email || null,
+          address: data.address || null,
+        });
+        toast({ title: "Paciente cadastrado com sucesso!" });
       }
-
-      form.setValue("address.street", data.logradouro);
-      form.setValue("address.neighborhood", data.bairro);
-      form.setValue("address.city", data.localidade);
-      form.setValue("address.state", data.uf);
-      form.setFocus("address.number");
-    } catch (error) {
-      toast({
-        title: "Erro ao buscar CEP",
-        description: "Verifique sua conexão.",
-        variant: "destructive",
+      onSuccess();
+    } catch (error: any) {
+      toast({ 
+        title: "Erro ao salvar paciente", 
+        description: error.message,
+        variant: "destructive" 
       });
-    } finally {
-      setIsLoadingCep(false);
     }
-  };
-
-  const onSubmit = (data: PatientFormValues) => {
-    if (patient) {
-      updatePatient(patient.id, data);
-      toast({ title: "Paciente atualizado com sucesso!" });
-    } else {
-      addPatient(data as Patient);
-      toast({ title: "Paciente cadastrado com sucesso!" });
-    }
-    onSuccess();
   };
 
   return (
@@ -166,17 +132,15 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
           />
           <FormField
             control={form.control}
-            name="rg"
+            name="birthDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>RG</FormLabel>
+                <FormLabel>Data de Nascimento</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder="00.000.000-0" 
+                    type="date"
                     {...field}
-                    onChange={(e) => field.onChange(maskRG(e.target.value))}
-                    maxLength={12}
-                    data-testid="input-patient-rg"
+                    data-testid="input-patient-birthdate"
                   />
                 </FormControl>
                 <FormMessage />
@@ -220,174 +184,33 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
               </FormItem>
             )}
           />
-        </div>
-
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground border-b pb-2">
-            Endereço
-          </h3>
-          <div className="grid grid-cols-4 gap-4">
-            <FormField
-              control={form.control}
-              name="address.cep"
-              render={({ field }) => (
-                <FormItem className="col-span-1">
-                  <FormLabel>CEP</FormLabel>
-                  <div className="relative">
-                    <FormControl>
-                      <Input
-                        placeholder="00000-000"
-                        {...field}
-                        onChange={(e) => field.onChange(maskCEP(e.target.value))}
-                        maxLength={9}
-                        onBlur={(e) => {
-                          field.onBlur();
-                          handleCepBlur(e);
-                        }}
-                        data-testid="input-patient-cep"
-                      />
-                    </FormControl>
-                    {isLoadingCep && (
-                      <div className="absolute right-2 top-2.5">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address.street"
-              render={({ field }) => (
-                <FormItem className="col-span-3">
-                  <FormLabel>Rua</FormLabel>
-                  <FormControl>
-                    <Input {...field} readOnly className="bg-muted/50" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address.number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número</FormLabel>
-                  <FormControl>
-                    <Input {...field} data-testid="input-patient-number" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address.neighborhood"
-              render={({ field }) => (
-                <FormItem className="col-span-2">
-                  <FormLabel>Bairro</FormLabel>
-                  <FormControl>
-                    <Input {...field} readOnly className="bg-muted/50" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address.city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cidade</FormLabel>
-                  <FormControl>
-                    <Input {...field} readOnly className="bg-muted/50" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address.state"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>UF</FormLabel>
-                  <FormControl>
-                    <Input {...field} readOnly className="bg-muted/50" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground border-b pb-2">
-            Plano e Status
-          </h3>
-          <div className="grid grid-cols-3 gap-4">
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger data-testid="select-patient-status">
-                        <SelectValue placeholder="Selecione o status" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="active">Ativo</SelectItem>
-                      <SelectItem value="inactive">Inativo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="planStartDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Início do Plano</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} data-testid="input-patient-plan-start" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="planEndDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Fim do Plano</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} data-testid="input-patient-plan-end" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="address"
+            render={({ field }) => (
+              <FormItem className="col-span-2">
+                <FormLabel>Endereço</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Rua, número, bairro, cidade - UF" 
+                    {...field}
+                    data-testid="input-patient-address"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
           <Button variant="outline" type="button" onClick={onSuccess} data-testid="button-cancel">
             Cancelar
           </Button>
-          <Button type="submit" data-testid="button-save-patient">Salvar</Button>
+          <Button type="submit" disabled={isPending} data-testid="button-save-patient">
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Salvar
+          </Button>
         </div>
       </form>
     </Form>

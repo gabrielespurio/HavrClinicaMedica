@@ -1,15 +1,28 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Users, Calendar, Settings, Activity } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, Settings, Activity, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const navigation = [
-  // { name: "Dashboard", href: "/", icon: LayoutDashboard }, // Focusing on the requested modules
   { name: "Agenda", href: "/", icon: Calendar },
   { name: "Pacientes", href: "/patients", icon: Users },
 ];
 
 export function Sidebar() {
   const [location] = useLocation();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  const initials = user?.name
+    .split(" ")
+    .map(n => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "U";
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
@@ -24,6 +37,7 @@ export function Sidebar() {
             return (
               <Link key={item.name} href={item.href}>
                 <div
+                  data-testid={`link-${item.name.toLowerCase()}`}
                   className={cn(
                     "group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
                     isActive
@@ -44,16 +58,26 @@ export function Sidebar() {
           })}
         </nav>
       </div>
-      <div className="border-t border-sidebar-border/50 p-4">
+      <div className="border-t border-sidebar-border/50 p-4 space-y-4">
         <div className="flex items-center">
           <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
-            DR
+            {initials}
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium">Dr. Roberto</p>
-            <p className="text-xs text-muted-foreground">Admin</p>
+          <div className="ml-3 flex-1 min-w-0">
+            <p className="text-sm font-medium truncate" data-testid="text-user-name">{user?.name}</p>
+            <p className="text-xs text-muted-foreground capitalize">{user?.role || "Usuário"}</p>
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleLogout}
+          className="w-full justify-start gap-2"
+          data-testid="button-logout"
+        >
+          <LogOut className="h-4 w-4" />
+          Sair
+        </Button>
       </div>
     </div>
   );

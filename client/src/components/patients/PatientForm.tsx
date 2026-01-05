@@ -23,18 +23,19 @@ import { useStore, type Patient } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { maskCPF, maskRG, maskPhone, maskCEP } from "@/lib/masks";
 
 const patientSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-  cpf: z.string().min(11, "CPF inválido"), // Simplified validation
-  rg: z.string().min(5, "RG inválido"),
-  phone: z.string().min(10, "Telefone inválido"),
+  cpf: z.string().min(14, "CPF inválido"),
+  rg: z.string().min(12, "RG inválido"),
+  phone: z.string().min(14, "Telefone inválido"),
   email: z.string().email("E-mail inválido"),
   status: z.enum(["active", "inactive"]),
   planStartDate: z.string(),
   planEndDate: z.string(),
   address: z.object({
-    cep: z.string().min(8, "CEP inválido"),
+    cep: z.string().min(9, "CEP inválido"),
     state: z.string().min(2, "Estado obrigatório"),
     city: z.string().min(2, "Cidade obrigatória"),
     neighborhood: z.string().min(2, "Bairro obrigatório"),
@@ -134,7 +135,11 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
               <FormItem className="col-span-2">
                 <FormLabel>Nome Completo</FormLabel>
                 <FormControl>
-                  <Input placeholder="Ex: João da Silva" {...field} />
+                  <Input 
+                    placeholder="Ex: João da Silva" 
+                    {...field} 
+                    data-testid="input-patient-name"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -147,7 +152,13 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
               <FormItem>
                 <FormLabel>CPF</FormLabel>
                 <FormControl>
-                  <Input placeholder="000.000.000-00" {...field} />
+                  <Input 
+                    placeholder="000.000.000-00" 
+                    {...field}
+                    onChange={(e) => field.onChange(maskCPF(e.target.value))}
+                    maxLength={14}
+                    data-testid="input-patient-cpf"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -160,7 +171,13 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
               <FormItem>
                 <FormLabel>RG</FormLabel>
                 <FormControl>
-                  <Input placeholder="00.000.000-0" {...field} />
+                  <Input 
+                    placeholder="00.000.000-0" 
+                    {...field}
+                    onChange={(e) => field.onChange(maskRG(e.target.value))}
+                    maxLength={12}
+                    data-testid="input-patient-rg"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -173,7 +190,12 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
               <FormItem>
                 <FormLabel>E-mail</FormLabel>
                 <FormControl>
-                  <Input placeholder="email@exemplo.com" {...field} />
+                  <Input 
+                    type="email"
+                    placeholder="email@exemplo.com" 
+                    {...field}
+                    data-testid="input-patient-email"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -186,7 +208,13 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
               <FormItem>
                 <FormLabel>Telefone</FormLabel>
                 <FormControl>
-                  <Input placeholder="(00) 00000-0000" {...field} />
+                  <Input 
+                    placeholder="(00) 00000-0000" 
+                    {...field}
+                    onChange={(e) => field.onChange(maskPhone(e.target.value))}
+                    maxLength={15}
+                    data-testid="input-patient-phone"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -210,10 +238,13 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
                       <Input
                         placeholder="00000-000"
                         {...field}
+                        onChange={(e) => field.onChange(maskCEP(e.target.value))}
+                        maxLength={9}
                         onBlur={(e) => {
                           field.onBlur();
                           handleCepBlur(e);
                         }}
+                        data-testid="input-patient-cep"
                       />
                     </FormControl>
                     {isLoadingCep && (
@@ -246,7 +277,7 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
                 <FormItem>
                   <FormLabel>Número</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} data-testid="input-patient-number" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -310,7 +341,7 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
                     defaultValue={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger data-testid="select-patient-status">
                         <SelectValue placeholder="Selecione o status" />
                       </SelectTrigger>
                     </FormControl>
@@ -330,7 +361,7 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
                 <FormItem>
                   <FormLabel>Início do Plano</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <Input type="date" {...field} data-testid="input-patient-plan-start" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -343,7 +374,7 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
                 <FormItem>
                   <FormLabel>Fim do Plano</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <Input type="date" {...field} data-testid="input-patient-plan-end" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -353,10 +384,10 @@ export function PatientForm({ patient, onSuccess }: PatientFormProps) {
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" type="button" onClick={onSuccess}>
+          <Button variant="outline" type="button" onClick={onSuccess} data-testid="button-cancel">
             Cancelar
           </Button>
-          <Button type="submit">Salvar</Button>
+          <Button type="submit" data-testid="button-save-patient">Salvar</Button>
         </div>
       </form>
     </Form>

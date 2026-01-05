@@ -163,7 +163,7 @@ export default function Agenda() {
   };
 
   const renderTimeGridView = (days: Date[]) => {
-    const hours = Array.from({ length: 15 }, (_, i) => i + 7);
+    const hours = Array.from({ length: 9 }, (_, i) => i + 9);
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-card shadow-sm overflow-hidden">
@@ -233,10 +233,10 @@ export default function Agenda() {
                              const [hourStr, minStr] = apt.time.split(':');
                              const hour = parseInt(hourStr, 10);
                              const minutes = parseInt(minStr, 10);
-                             const topOffset = (hour - 7 + minutes / 60) * 5;
+                             const topOffset = (hour - 9 + minutes / 60) * 5;
                              const height = 2.4;
                              
-                             if (hour < 7 || hour > 21) return null;
+                             if (hour < 9 || hour > 17) return null;
                              
                              return (
                                  <div
@@ -261,7 +261,7 @@ export default function Agenda() {
                          {isToday(day) && (
                             <div 
                                 className="absolute left-0 right-0 border-t-2 border-red-500 z-20 pointer-events-none"
-                                style={{ top: `${(new Date().getHours() - 7 + new Date().getMinutes()/60) * 5}rem` }}
+                                style={{ top: `${(new Date().getHours() - 9 + new Date().getMinutes()/60) * 5}rem` }}
                             >
                                 <div className="absolute -left-1.5 -top-1.5 h-3 w-3 rounded-full bg-red-500"></div>
                             </div>

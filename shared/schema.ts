@@ -49,9 +49,10 @@ export type Patient = typeof patients.$inferSelect;
 export const appointments = pgTable("appointments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   patientId: varchar("patient_id").notNull().references(() => patients.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("consulta"),
   date: date("date").notNull(),
   time: time("time").notNull(),
-  duration: text("duration").notNull().default("30"),
+  professional: text("professional").notNull().default("Dr. Roberto Santos"),
   status: text("status").notNull().default("scheduled"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

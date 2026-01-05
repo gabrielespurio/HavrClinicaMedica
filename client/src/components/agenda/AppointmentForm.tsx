@@ -20,19 +20,18 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { usePatients } from "@/hooks/usePatients";
-import { useCreateAppointment, useUpdateAppointment, type Appointment } from "@/hooks/useAppointments";
+import { useCreateAppointment, useUpdateAppointment, type Appointment, type AppointmentType } from "@/hooks/useAppointments";
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isBefore } from "date-fns";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
 const appointmentSchema = z.object({
   patientId: z.string().min(1, "Selecione um paciente"),
+  type: z.enum(["consulta", "retorno", "tirzepatida", "aplicacao"]),
   date: z.string(),
   time: z.string(),
-  duration: z.string(),
-  status: z.string(),
-  notes: z.string().optional(),
+  professional: z.string(),
 });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
@@ -55,55 +54,88 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
     resolver: zodResolver(appointmentSchema),
     defaultValues: appointment ? {
       patientId: appointment.patientId,
+      type: appointment.type as AppointmentType,
       date: appointment.date,
-      time: appointment.time,
-      duration: appointment.duration,
-      status: appointment.status,
-      notes: appointment.notes || "",
+      time: appointment.time.slice(0, 5),
+      professional: appointment.professional,
     } : {
       patientId: "",
+      type: "consulta",
       date: format(defaultDate, "yyyy-MM-dd"),
       time: format(defaultDate, "HH:mm"),
-      duration: "30",
-      status: "scheduled",
-      notes: "",
+      professional: "Dr. Roberto Santos",
     },
   });
 
+  const selectedType = form.watch("type");
   const isPending = createAppointment.isPending || updateAppointment.isPending;
 
+  useEffect(() => {
+    if (appointment) return;
+    if (selectedType === "consulta" || selectedType === "retorno") {
+      form.setValue("professional", "Dr. Roberto Santos");
+    } else {
+      form.setValue("professional", "Enf. Juliana Costa");
+    }
+  }, [selectedType, form, appointment]);
+
   const onSubmit = async (data: AppointmentFormValues) => {
+    const patient = (patients || []).find((p) => p.id === data.patientId);
+
+    if (!patient) {
+      toast({
+        title: "Erro",
+        description: "Paciente não encontrado",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (patient.planEndDate) {
+      const appointmentDate = new Date(`${data.date}T${data.time}`);
+      const planEnd = new Date(patient.planEndDate);
+
+      if (isBefore(planEnd, appointmentDate)) {
+        toast({
+          title: "Plano Vencido",
+          description: `O plano deste paciente vence em ${format(planEnd, "dd/MM/yyyy")}.`,
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     try {
       if (appointment) {
         await updateAppointment.mutateAsync({
           id: appointment.id,
           data: {
             patientId: data.patientId,
+            type: data.type,
             date: data.date,
             time: data.time,
-            duration: data.duration,
-            status: data.status,
-            notes: data.notes || null,
+            professional: data.professional,
+            status: appointment.status,
           }
         });
         toast({ title: "Agendamento atualizado com sucesso!" });
       } else {
         await createAppointment.mutateAsync({
           patientId: data.patientId,
+          type: data.type,
           date: data.date,
           time: data.time,
-          duration: data.duration,
-          status: data.status,
-          notes: data.notes || null,
+          professional: data.professional,
+          status: "scheduled",
         });
         toast({ title: "Agendamento realizado com sucesso!" });
       }
       onSuccess();
     } catch (error: any) {
-      toast({ 
-        title: "Erro ao salvar agendamento", 
+      toast({
+        title: "Erro ao salvar agendamento",
         description: error.message,
-        variant: "destructive" 
+        variant: "destructive"
       });
     }
   };
@@ -153,6 +185,30 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tipo de Agendamento</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isReadOnly}>
+                <FormControl>
+                  <SelectTrigger data-testid="select-appointment-type">
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="consulta">Consulta</SelectItem>
+                  <SelectItem value="retorno">Retorno</SelectItem>
+                  <SelectItem value="tirzepatida">Tirzepatida</SelectItem>
+                  <SelectItem value="aplicacao">Aplicação</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -182,70 +238,18 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="duration"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Duração (min)</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isReadOnly}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-duration">
-                      <SelectValue placeholder="Duração" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="15">15 minutos</SelectItem>
-                    <SelectItem value="30">30 minutos</SelectItem>
-                    <SelectItem value="45">45 minutos</SelectItem>
-                    <SelectItem value="60">1 hora</SelectItem>
-                    <SelectItem value="90">1h30</SelectItem>
-                    <SelectItem value="120">2 horas</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-status">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="scheduled">Agendado</SelectItem>
-                    <SelectItem value="confirmed">Confirmado</SelectItem>
-                    <SelectItem value="completed">Realizado</SelectItem>
-                    <SelectItem value="cancelled">Cancelado</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
         <FormField
           control={form.control}
-          name="notes"
+          name="professional"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Observações</FormLabel>
+              <FormLabel>Profissional Responsável</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="Observações sobre o agendamento (opcional)" 
-                  {...field} 
-                  data-testid="input-notes"
-                />
+                <Input {...field} readOnly className="bg-muted/50 font-medium text-primary" data-testid="input-professional" />
               </FormControl>
+              <FormDescription>
+                Atribuído automaticamente pelo sistema.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

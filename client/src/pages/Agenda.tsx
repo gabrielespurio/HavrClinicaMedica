@@ -86,23 +86,23 @@ export default function Agenda() {
     return patient?.name || "Paciente";
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "scheduled": return "bg-blue-100 text-blue-700 border-blue-200";
-      case "confirmed": return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      case "completed": return "bg-gray-100 text-gray-700 border-gray-200";
-      case "cancelled": return "bg-red-100 text-red-700 border-red-200";
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "consulta": return "bg-blue-100 text-blue-700 border-blue-200";
+      case "retorno": return "bg-indigo-100 text-indigo-700 border-indigo-200";
+      case "tirzepatida": return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "aplicacao": return "bg-teal-100 text-teal-700 border-teal-200";
       default: return "bg-blue-100 text-blue-700 border-blue-200";
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "scheduled": return "Agendado";
-      case "confirmed": return "Confirmado";
-      case "completed": return "Realizado";
-      case "cancelled": return "Cancelado";
-      default: return status;
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case "consulta": return "Consulta";
+      case "retorno": return "Retorno";
+      case "tirzepatida": return "Tirzepatida";
+      case "aplicacao": return "Aplicação";
+      default: return type;
     }
   };
 
@@ -143,9 +143,9 @@ export default function Agenda() {
               <div className="mt-2 space-y-1">
                 {dayAppointments.slice(0, 3).map((apt) => (
                   <div key={apt.id} onClick={(e) => handleAppointmentClick(e, apt)}>
-                    <div className={cn("text-[10px] px-1.5 py-0.5 rounded truncate border", getStatusColor(apt.status))}>
+                    <div className={cn("text-[10px] px-1.5 py-0.5 rounded truncate border", getTypeColor(apt.type))}>
                       <span className="font-medium mr-1">{apt.time.slice(0, 5)}</span>
-                      {getPatientName(apt.patientId)}
+                      {getTypeLabel(apt.type)}
                     </div>
                   </div>
                 ))}
@@ -234,8 +234,7 @@ export default function Agenda() {
                              const hour = parseInt(hourStr, 10);
                              const minutes = parseInt(minStr, 10);
                              const topOffset = (hour - 7 + minutes / 60) * 5;
-                             const duration = parseInt(apt.duration, 10) || 30;
-                             const height = (duration / 60) * 5;
+                             const height = 2.4;
                              
                              if (hour < 7 || hour > 21) return null;
                              
@@ -246,19 +245,14 @@ export default function Agenda() {
                                      style={{ top: `${topOffset}rem`, height: `${height}rem` }}
                                      onClick={(e) => handleAppointmentClick(e, apt)}
                                  >
-                                    <div className={cn("h-full w-full rounded border p-2 text-xs flex flex-col gap-1 shadow-sm transition-all hover:brightness-95 cursor-pointer", getStatusColor(apt.status))}>
+                                    <div className={cn("h-full w-full rounded border p-2 text-xs flex flex-col gap-1 shadow-sm transition-all hover:brightness-95 cursor-pointer", getTypeColor(apt.type))}>
                                       <div className="font-semibold flex justify-between gap-1">
-                                        <span className="truncate">{getStatusLabel(apt.status)}</span>
+                                        <span className="truncate">{getTypeLabel(apt.type)}</span>
                                         <span>{apt.time.slice(0, 5)}</span>
                                       </div>
                                       <div className="truncate font-medium opacity-90">
                                          {getPatientName(apt.patientId)}
                                       </div>
-                                      {apt.notes && (
-                                        <div className="mt-auto truncate opacity-75 text-[10px]">
-                                          {apt.notes}
-                                        </div>
-                                      )}
                                     </div>
                                  </div>
                              );

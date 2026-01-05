@@ -1,12 +1,15 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+export type AppointmentType = "consulta" | "retorno" | "tirzepatida" | "aplicacao";
+
 export type Appointment = {
   id: string;
   patientId: string;
+  type: AppointmentType;
   date: string;
   time: string;
-  duration: string;
+  professional: string;
   status: string;
   notes?: string | null;
   createdAt: Date;

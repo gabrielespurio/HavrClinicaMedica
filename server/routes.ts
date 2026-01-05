@@ -538,5 +538,64 @@ export async function registerRoutes(
     }
   });
 
+  // API 4 - Webhook WhatsApp para criar agendamentos
+  app.post("/api/agenda/webhook-whatsapp", async (req, res, next) => {
+    try {
+      const { cpf, telefone, data, hora, tipoId, profissionalId, notas } = req.body;
+
+      if (!cpf && !telefone) {
+        return res.status(400).json({ message: "Informe CPF ou telefone do paciente" });
+      }
+      if (!data || !hora) {
+        return res.status(400).json({ message: "Data e hora são obrigatórios" });
+      }
+
+      // 1. Localizar ou validar paciente
+      let patient;
+      if (cpf) {
+        patient = await storage.getPatientByCPF(cpf);
+      }
+      if (!patient && telefone) {
+        patient = await storage.getPatientByPhone(telefone);
+      }
+
+      if (!patient) {
+        return res.status(404).json({ message: "Paciente não encontrado. Cadastre o paciente primeiro." });
+      }
+
+      // 2. Validar tipo de agendamento se fornecido, ou usar padrão
+      let typeName = "Consulta";
+      if (tipoId) {
+        const type = await storage.getAppointmentType(tipoId);
+        if (type) typeName = type.name;
+      }
+
+      // 3. Validar profissional se fornecido, ou usar padrão
+      let profName = "Dr. Roberto Santos";
+      if (profissionalId) {
+        const prof = await storage.getProfessional(profissionalId);
+        if (prof) profName = prof.name;
+      }
+
+      // 4. Criar o agendamento
+      const appointment = await storage.createAppointment({
+        patientId: patient.id,
+        type: typeName,
+        date: data, // Formato YYYY-MM-DD
+        time: hora, // Formato HH:mm
+        professional: profName,
+        status: "scheduled",
+        notes: notas || "Agendado via WhatsApp",
+      });
+
+      res.status(201).json({
+        message: "Agendamento criado com sucesso",
+        agendamento: appointment
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   return httpServer;
 }

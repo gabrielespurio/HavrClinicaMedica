@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import NotFound from "@/pages/not-found";
 import Agenda from "@/pages/Agenda";
 import Patients from "@/pages/Patients";
+import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -40,6 +41,9 @@ function Router() {
       </Route>
       <Route path="/patients">
         <ProtectedRoute component={Patients} />
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute component={Settings} />
       </Route>
       <Route component={NotFound} />
     </Switch>

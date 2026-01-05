@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAppointmentSchema } from "@shared/schema";
+import { insertPatientSchema, insertAppointmentSchema, insertProfessionalSchema, insertAppointmentTypeSchema, insertServiceScheduleSchema } from "@shared/schema";
 import passport from "passport";
 import { requireAuth } from "./auth";
 
@@ -187,6 +187,195 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Agendamento não encontrado" });
       }
       res.json({ message: "Agendamento removido com sucesso" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Professional routes
+  app.get("/api/professionals", requireAuth, async (req, res, next) => {
+    try {
+      const professionals = await storage.getAllProfessionals();
+      res.json(professionals);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/professionals/:id", requireAuth, async (req, res, next) => {
+    try {
+      const professional = await storage.getProfessional(req.params.id);
+      if (!professional) {
+        return res.status(404).json({ message: "Profissional não encontrado" });
+      }
+      res.json(professional);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/professionals", requireAuth, async (req, res, next) => {
+    try {
+      const result = insertProfessionalSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
+      }
+
+      const professional = await storage.createProfessional(result.data);
+      res.status(201).json(professional);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/professionals/:id", requireAuth, async (req, res, next) => {
+    try {
+      const result = insertProfessionalSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
+      }
+
+      const professional = await storage.updateProfessional(req.params.id, result.data);
+      if (!professional) {
+        return res.status(404).json({ message: "Profissional não encontrado" });
+      }
+      res.json(professional);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/professionals/:id", requireAuth, async (req, res, next) => {
+    try {
+      const success = await storage.deleteProfessional(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Profissional não encontrado" });
+      }
+      res.json({ message: "Profissional removido com sucesso" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Appointment Type routes
+  app.get("/api/appointment-types", requireAuth, async (req, res, next) => {
+    try {
+      const types = await storage.getAllAppointmentTypes();
+      res.json(types);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/appointment-types/:id", requireAuth, async (req, res, next) => {
+    try {
+      const type = await storage.getAppointmentType(req.params.id);
+      if (!type) {
+        return res.status(404).json({ message: "Tipo de atendimento não encontrado" });
+      }
+      res.json(type);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/appointment-types", requireAuth, async (req, res, next) => {
+    try {
+      const result = insertAppointmentTypeSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
+      }
+
+      const type = await storage.createAppointmentType(result.data);
+      res.status(201).json(type);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/appointment-types/:id", requireAuth, async (req, res, next) => {
+    try {
+      const result = insertAppointmentTypeSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
+      }
+
+      const type = await storage.updateAppointmentType(req.params.id, result.data);
+      if (!type) {
+        return res.status(404).json({ message: "Tipo de atendimento não encontrado" });
+      }
+      res.json(type);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/appointment-types/:id", requireAuth, async (req, res, next) => {
+    try {
+      const success = await storage.deleteAppointmentType(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Tipo de atendimento não encontrado" });
+      }
+      res.json({ message: "Tipo de atendimento removido com sucesso" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Service Schedule routes
+  app.get("/api/schedules", requireAuth, async (req, res, next) => {
+    try {
+      const { professionalId } = req.query;
+      let schedules;
+      if (professionalId) {
+        schedules = await storage.getSchedulesByProfessional(professionalId as string);
+      } else {
+        schedules = await storage.getAllServiceSchedules();
+      }
+      res.json(schedules);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/schedules", requireAuth, async (req, res, next) => {
+    try {
+      const result = insertServiceScheduleSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
+      }
+
+      const schedule = await storage.createServiceSchedule(result.data);
+      res.status(201).json(schedule);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/schedules/:id", requireAuth, async (req, res, next) => {
+    try {
+      const result = insertServiceScheduleSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
+      }
+
+      const schedule = await storage.updateServiceSchedule(req.params.id, result.data);
+      if (!schedule) {
+        return res.status(404).json({ message: "Horário não encontrado" });
+      }
+      res.json(schedule);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/schedules/:id", requireAuth, async (req, res, next) => {
+    try {
+      const success = await storage.deleteServiceSchedule(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Horário não encontrado" });
+      }
+      res.json({ message: "Horário removido com sucesso" });
     } catch (error) {
       next(error);
     }

@@ -5,9 +5,18 @@ import {
   type InsertPatient,
   type Appointment,
   type InsertAppointment,
+  type Professional,
+  type InsertProfessional,
+  type AppointmentType,
+  type InsertAppointmentType,
+  type ServiceSchedule,
+  type InsertServiceSchedule,
   users,
   patients,
   appointments,
+  professionals,
+  appointmentTypes,
+  serviceSchedules,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
@@ -35,6 +44,28 @@ export interface IStorage {
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: string, appointment: Partial<InsertAppointment>): Promise<Appointment | undefined>;
   deleteAppointment(id: string): Promise<boolean>;
+
+  // Professional methods
+  getAllProfessionals(): Promise<Professional[]>;
+  getProfessional(id: string): Promise<Professional | undefined>;
+  createProfessional(professional: InsertProfessional): Promise<Professional>;
+  updateProfessional(id: string, professional: Partial<InsertProfessional>): Promise<Professional | undefined>;
+  deleteProfessional(id: string): Promise<boolean>;
+
+  // Appointment Type methods
+  getAllAppointmentTypes(): Promise<AppointmentType[]>;
+  getAppointmentType(id: string): Promise<AppointmentType | undefined>;
+  getAppointmentTypeBySlug(slug: string): Promise<AppointmentType | undefined>;
+  createAppointmentType(type: InsertAppointmentType): Promise<AppointmentType>;
+  updateAppointmentType(id: string, type: Partial<InsertAppointmentType>): Promise<AppointmentType | undefined>;
+  deleteAppointmentType(id: string): Promise<boolean>;
+
+  // Service Schedule methods
+  getAllServiceSchedules(): Promise<ServiceSchedule[]>;
+  getSchedulesByProfessional(professionalId: string): Promise<ServiceSchedule[]>;
+  createServiceSchedule(schedule: InsertServiceSchedule): Promise<ServiceSchedule>;
+  updateServiceSchedule(id: string, schedule: Partial<InsertServiceSchedule>): Promise<ServiceSchedule | undefined>;
+  deleteServiceSchedule(id: string): Promise<boolean>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -138,6 +169,101 @@ export class PostgresStorage implements IStorage {
 
   async deleteAppointment(id: string): Promise<boolean> {
     const result = await db.delete(appointments).where(eq(appointments.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Professional methods
+  async getAllProfessionals(): Promise<Professional[]> {
+    return await db.select().from(professionals).orderBy(professionals.name);
+  }
+
+  async getProfessional(id: string): Promise<Professional | undefined> {
+    const result = await db.select().from(professionals).where(eq(professionals.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createProfessional(insertProfessional: InsertProfessional): Promise<Professional> {
+    const result = await db.insert(professionals).values(insertProfessional).returning();
+    return result[0];
+  }
+
+  async updateProfessional(id: string, professional: Partial<InsertProfessional>): Promise<Professional | undefined> {
+    const result = await db
+      .update(professionals)
+      .set({ ...professional, updatedAt: new Date() })
+      .where(eq(professionals.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteProfessional(id: string): Promise<boolean> {
+    const result = await db.delete(professionals).where(eq(professionals.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Appointment Type methods
+  async getAllAppointmentTypes(): Promise<AppointmentType[]> {
+    return await db.select().from(appointmentTypes).orderBy(appointmentTypes.name);
+  }
+
+  async getAppointmentType(id: string): Promise<AppointmentType | undefined> {
+    const result = await db.select().from(appointmentTypes).where(eq(appointmentTypes.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getAppointmentTypeBySlug(slug: string): Promise<AppointmentType | undefined> {
+    const result = await db.select().from(appointmentTypes).where(eq(appointmentTypes.slug, slug)).limit(1);
+    return result[0];
+  }
+
+  async createAppointmentType(insertType: InsertAppointmentType): Promise<AppointmentType> {
+    const result = await db.insert(appointmentTypes).values(insertType).returning();
+    return result[0];
+  }
+
+  async updateAppointmentType(id: string, type: Partial<InsertAppointmentType>): Promise<AppointmentType | undefined> {
+    const result = await db
+      .update(appointmentTypes)
+      .set({ ...type, updatedAt: new Date() })
+      .where(eq(appointmentTypes.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteAppointmentType(id: string): Promise<boolean> {
+    const result = await db.delete(appointmentTypes).where(eq(appointmentTypes.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Service Schedule methods
+  async getAllServiceSchedules(): Promise<ServiceSchedule[]> {
+    return await db.select().from(serviceSchedules).orderBy(serviceSchedules.weekday, serviceSchedules.startTime);
+  }
+
+  async getSchedulesByProfessional(professionalId: string): Promise<ServiceSchedule[]> {
+    return await db
+      .select()
+      .from(serviceSchedules)
+      .where(eq(serviceSchedules.professionalId, professionalId))
+      .orderBy(serviceSchedules.weekday, serviceSchedules.startTime);
+  }
+
+  async createServiceSchedule(insertSchedule: InsertServiceSchedule): Promise<ServiceSchedule> {
+    const result = await db.insert(serviceSchedules).values(insertSchedule).returning();
+    return result[0];
+  }
+
+  async updateServiceSchedule(id: string, schedule: Partial<InsertServiceSchedule>): Promise<ServiceSchedule | undefined> {
+    const result = await db
+      .update(serviceSchedules)
+      .set({ ...schedule, updatedAt: new Date() })
+      .where(eq(serviceSchedules.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteServiceSchedule(id: string): Promise<boolean> {
+    const result = await db.delete(serviceSchedules).where(eq(serviceSchedules.id, id)).returning();
     return result.length > 0;
   }
 }

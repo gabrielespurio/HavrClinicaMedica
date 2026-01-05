@@ -1,8 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAppointmentSchema, insertUserSchema } from "@shared/schema";
-import bcrypt from "bcryptjs";
+import { insertPatientSchema, insertAppointmentSchema } from "@shared/schema";
 import passport from "passport";
 import { requireAuth } from "./auth";
 
@@ -11,34 +10,6 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   // Authentication routes
-  app.post("/api/register", async (req, res, next) => {
-    try {
-      const result = insertUserSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
-      }
-
-      const existingUser = await storage.getUserByUsername(result.data.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Usuário já existe" });
-      }
-
-      const hashedPassword = await bcrypt.hash(result.data.password, 10);
-      const user = await storage.createUser({
-        ...result.data,
-        password: hashedPassword,
-      });
-
-      req.login(user, (err) => {
-        if (err) return next(err);
-        const { password, ...userWithoutPassword } = user;
-        res.status(201).json(userWithoutPassword);
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
-
   app.post("/api/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) return next(err);

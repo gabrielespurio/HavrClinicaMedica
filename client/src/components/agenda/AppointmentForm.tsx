@@ -22,9 +22,10 @@ import { Input } from "@/components/ui/input";
 import { usePatients } from "@/hooks/usePatients";
 import { useCreateAppointment, useUpdateAppointment, type Appointment, type AppointmentType } from "@/hooks/useAppointments";
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO, isBefore } from "date-fns";
+import { format, parseISO, isBefore, getDay } from "date-fns";
 import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Clock, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const appointmentSchema = z.object({
   patientId: z.string().min(1, "Selecione um paciente"),
@@ -40,6 +41,48 @@ interface AppointmentFormProps {
   defaultDate: Date;
   appointment?: Appointment | null;
   onSuccess: () => void;
+}
+
+function validateBusinessHours(date: string, time: string): { valid: boolean; message: string } {
+  const appointmentDate = new Date(`${date}T${time}`);
+  const dayOfWeek = getDay(appointmentDate);
+  const [hours, minutes] = time.split(':').map(Number);
+  const timeInMinutes = hours * 60 + minutes;
+
+  if (dayOfWeek === 0) {
+    return { valid: false, message: "A clínica não funciona aos domingos." };
+  }
+
+  if (dayOfWeek === 6) {
+    return { valid: false, message: "A clínica não funciona aos sábados." };
+  }
+
+  if (dayOfWeek === 5) {
+    const openTime = 9 * 60;
+    const closeTime = 13 * 60;
+    if (timeInMinutes < openTime || timeInMinutes >= closeTime) {
+      return { valid: false, message: "Sexta-feira: horário de funcionamento é das 9h às 13h." };
+    }
+    return { valid: true, message: "" };
+  }
+
+  const openTime = 9 * 60;
+  const closeTime = 18 * 60;
+  if (timeInMinutes < openTime || timeInMinutes >= closeTime) {
+    return { valid: false, message: "Segunda a quinta: horário de funcionamento é das 9h às 18h." };
+  }
+
+  return { valid: true, message: "" };
+}
+
+function getBusinessHoursForDate(date: string): string {
+  const appointmentDate = new Date(`${date}T12:00`);
+  const dayOfWeek = getDay(appointmentDate);
+
+  if (dayOfWeek === 0) return "Fechado (Domingo)";
+  if (dayOfWeek === 6) return "Fechado (Sábado)";
+  if (dayOfWeek === 5) return "09:00 - 13:00";
+  return "09:00 - 18:00";
 }
 
 export function AppointmentForm({ defaultDate, appointment, onSuccess }: AppointmentFormProps) {
@@ -68,7 +111,12 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   });
 
   const selectedType = form.watch("type");
+  const selectedDate = form.watch("date");
+  const selectedTime = form.watch("time");
   const isPending = createAppointment.isPending || updateAppointment.isPending;
+
+  const businessHours = selectedDate ? getBusinessHoursForDate(selectedDate) : "";
+  const validation = selectedDate && selectedTime ? validateBusinessHours(selectedDate, selectedTime) : { valid: true, message: "" };
 
   useEffect(() => {
     if (appointment) return;
@@ -80,6 +128,16 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   }, [selectedType, form, appointment]);
 
   const onSubmit = async (data: AppointmentFormValues) => {
+    const hourValidation = validateBusinessHours(data.date, data.time);
+    if (!hourValidation.valid) {
+      toast({
+        title: "Horário Indisponível",
+        description: hourValidation.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
     const patient = (patients || []).find((p) => p.id === data.patientId);
 
     if (!patient) {
@@ -238,6 +296,20 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
           />
         </div>
 
+        {!isReadOnly && selectedDate && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 px-3 py-2 rounded-md">
+            <Clock className="h-4 w-4" />
+            <span>Horário de funcionamento: <strong>{businessHours}</strong></span>
+          </div>
+        )}
+
+        {!isReadOnly && !validation.valid && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{validation.message}</AlertDescription>
+          </Alert>
+        )}
+
         <FormField
           control={form.control}
           name="professional"
@@ -257,7 +329,12 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
 
         <div className="flex justify-end pt-2">
           {!isReadOnly && (
-            <Button type="submit" className="w-full" disabled={isPending} data-testid="button-confirm-appointment">
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isPending || !validation.valid} 
+              data-testid="button-confirm-appointment"
+            >
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmar Agendamento
             </Button>

@@ -31,6 +31,7 @@ export interface IStorage {
   getAllPatients(): Promise<Patient[]>;
   getPatient(id: string): Promise<Patient | undefined>;
   getPatientByCPF(cpf: string): Promise<Patient | undefined>;
+  getPatientByPhone(phone: string): Promise<Patient | undefined>;
   createPatient(patient: InsertPatient): Promise<Patient>;
   updatePatient(id: string, patient: Partial<InsertPatient>): Promise<Patient | undefined>;
   deletePatient(id: string): Promise<boolean>;
@@ -97,6 +98,11 @@ export class PostgresStorage implements IStorage {
 
   async getPatientByCPF(cpf: string): Promise<Patient | undefined> {
     const result = await db.select().from(patients).where(eq(patients.cpf, cpf)).limit(1);
+    return result[0];
+  }
+
+  async getPatientByPhone(phone: string): Promise<Patient | undefined> {
+    const result = await db.select().from(patients).where(eq(patients.phone, phone)).limit(1);
     return result[0];
   }
 

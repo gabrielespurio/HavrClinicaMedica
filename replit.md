@@ -43,6 +43,22 @@ Preferred communication style: Simple, everyday language.
 1. **Users**: Authentication with username, password, name, and role
 2. **Patients**: Personal info (name, CPF, birth date, phone, email, address)
 3. **Appointments**: Linked to patients with date, time, duration, status, and notes
+4. **Professionals**: Doctors and nurses with specialty and status
+5. **Appointment Types**: Configurable consultation types with duration and default professional
+6. **Service Schedules**: Per-professional weekday availability
+
+### Public APIs (No Authentication Required)
+1. **GET /api/agenda/disponibilidade** - Query available time slots
+   - Query params: `dataInicio` (required), `dataFim` (optional)
+   - Returns available 30-min slots respecting business hours (Mon-Thu 9-18h, Fri 9-13h)
+   
+2. **GET /api/agenda/agendamentos-por-pessoa** - Query appointments by person
+   - Query params: `cpf` or `telefone`
+   - Returns future appointments ordered by date/time
+   
+3. **GET /api/pacientes/validar** - Validate if patient exists and is active
+   - Query params: `cpf` or `telefone`
+   - Returns `{ existe: boolean, ativo: boolean }`
 
 ### Project Structure
 ```
@@ -50,10 +66,13 @@ Preferred communication style: Simple, everyday language.
 │   ├── src/
 │   │   ├── components/  # UI components (ui/, layout/, patients/, agenda/)
 │   │   ├── contexts/    # React contexts (AuthContext)
-│   │   ├── hooks/       # Custom hooks (usePatients, useAppointments)
+│   │   ├── hooks/       # Custom hooks (usePatients, useAppointments, useSettings)
 │   │   ├── lib/         # Utilities (queryClient, store, utils)
 │   │   └── pages/       # Route components
 ├── server/           # Backend Express application
+│   ├── services/     # Business logic services
+│   │   ├── agendaService.ts    # Availability and appointment queries
+│   │   └── patientService.ts   # Patient validation
 │   ├── auth.ts       # Authentication setup
 │   ├── db.ts         # Database connection
 │   ├── routes.ts     # API endpoints

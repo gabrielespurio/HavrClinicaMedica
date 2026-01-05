@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { insertPatientSchema, insertAppointmentSchema, insertProfessionalSchema, insertAppointmentTypeSchema, insertServiceScheduleSchema } from "@shared/schema";
 import passport from "passport";
 import { requireAuth } from "./auth";
+import { getAvailableSlots, getAppointmentsByPerson } from "./services/agendaService";
+import { validatePatient } from "./services/patientService";
 
 // Business hours validation helper
 function validateBusinessHours(weekday: number, startTime: string, endTime: string): { valid: boolean; message?: string } {
@@ -460,6 +462,78 @@ export async function registerRoutes(
       }
       res.json({ message: "Horário removido com sucesso" });
     } catch (error) {
+      next(error);
+    }
+  });
+
+  // ========================================
+  // APIs Públicas (sem autenticação)
+  // ========================================
+
+  // API 1 - Consultar horários disponíveis
+  app.get("/api/agenda/disponibilidade", async (req, res, next) => {
+    try {
+      const { dataInicio, dataFim } = req.query;
+
+      if (!dataInicio || typeof dataInicio !== "string") {
+        return res.status(400).json({ message: "Parâmetro dataInicio é obrigatório" });
+      }
+
+      const results = await getAvailableSlots(
+        dataInicio,
+        typeof dataFim === "string" ? dataFim : undefined
+      );
+
+      // Se apenas uma data, retorna objeto simples; se período, retorna array
+      if (!dataFim || dataInicio === dataFim) {
+        return res.json(results[0] || { data: dataInicio, horariosDisponiveis: [] });
+      }
+
+      res.json(results);
+    } catch (error: any) {
+      if (error.message?.includes("inválida")) {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  });
+
+  // API 2 - Consultar agendamentos de uma pessoa
+  app.get("/api/agenda/agendamentos-por-pessoa", async (req, res, next) => {
+    try {
+      const { cpf, telefone } = req.query;
+
+      if (!cpf && !telefone) {
+        return res.status(400).json({ message: "Informe CPF ou telefone" });
+      }
+
+      const results = await getAppointmentsByPerson(
+        typeof cpf === "string" ? cpf : undefined,
+        typeof telefone === "string" ? telefone : undefined
+      );
+
+      res.json(results);
+    } catch (error: any) {
+      next(error);
+    }
+  });
+
+  // API 3 - Validar se paciente existe e está ativo
+  app.get("/api/pacientes/validar", async (req, res, next) => {
+    try {
+      const { cpf, telefone } = req.query;
+
+      if (!cpf && !telefone) {
+        return res.status(400).json({ message: "Informe CPF ou telefone" });
+      }
+
+      const result = await validatePatient(
+        typeof cpf === "string" ? cpf : undefined,
+        typeof telefone === "string" ? telefone : undefined
+      );
+
+      res.json(result);
+    } catch (error: any) {
       next(error);
     }
   });

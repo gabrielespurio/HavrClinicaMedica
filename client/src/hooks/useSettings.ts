@@ -125,16 +125,12 @@ export function useDeleteAppointmentType() {
 }
 
 export function useServiceSchedules(professionalId?: string) {
-  const queryParams = new URLSearchParams();
-  if (professionalId) queryParams.append("professionalId", professionalId);
-  const queryString = queryParams.toString();
-  const url = queryString ? `/api/schedules?${queryString}` : "/api/schedules";
-
+  const queryString = professionalId ? `?professionalId=${professionalId}` : "";
+  
   return useQuery<ServiceSchedule[]>({
     queryKey: ["/api/schedules", professionalId],
     queryFn: async () => {
-      const response = await fetch(url, { credentials: "include" });
-      if (!response.ok) throw new Error("Failed to fetch schedules");
+      const response = await apiRequest("GET", `/api/schedules${queryString}`);
       return response.json();
     },
   });

@@ -5,6 +5,40 @@ import { insertPatientSchema, insertAppointmentSchema, insertProfessionalSchema,
 import passport from "passport";
 import { requireAuth } from "./auth";
 
+// Business hours validation helper
+function validateBusinessHours(weekday: number, startTime: string, endTime: string): { valid: boolean; message?: string } {
+  // Weekend days are not allowed (0 = Sunday, 6 = Saturday)
+  if (weekday === 0 || weekday === 6) {
+    return { valid: false, message: "Não é permitido agendar nos finais de semana" };
+  }
+
+  const parseTime = (time: string) => {
+    const [hours, minutes] = time.split(":").map(Number);
+    return hours * 60 + (minutes || 0);
+  };
+
+  const startMinutes = parseTime(startTime);
+  const endMinutes = parseTime(endTime);
+
+  // Friday: 9:00 - 13:00
+  if (weekday === 5) {
+    if (startMinutes < parseTime("09:00") || endMinutes > parseTime("13:00")) {
+      return { valid: false, message: "Sexta-feira: horário permitido é 09:00 - 13:00" };
+    }
+  } else {
+    // Monday-Thursday: 9:00 - 18:00
+    if (startMinutes < parseTime("09:00") || endMinutes > parseTime("18:00")) {
+      return { valid: false, message: "Segunda a Quinta: horário permitido é 09:00 - 18:00" };
+    }
+  }
+
+  if (startMinutes >= endMinutes) {
+    return { valid: false, message: "Horário de início deve ser anterior ao horário de término" };
+  }
+
+  return { valid: true };
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -286,6 +320,14 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
       }
 
+      // Validate default professional exists if provided
+      if (result.data.defaultProfessionalId) {
+        const professional = await storage.getProfessional(result.data.defaultProfessionalId);
+        if (!professional) {
+          return res.status(400).json({ message: "Profissional padrão não encontrado" });
+        }
+      }
+
       const type = await storage.createAppointmentType(result.data);
       res.status(201).json(type);
     } catch (error) {
@@ -298,6 +340,14 @@ export async function registerRoutes(
       const result = insertAppointmentTypeSchema.partial().safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
+      }
+
+      // Validate default professional exists if being updated
+      if (result.data.defaultProfessionalId) {
+        const professional = await storage.getProfessional(result.data.defaultProfessionalId);
+        if (!professional) {
+          return res.status(400).json({ message: "Profissional padrão não encontrado" });
+        }
       }
 
       const type = await storage.updateAppointmentType(req.params.id, result.data);
@@ -345,6 +395,18 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
       }
 
+      // Validate business hours
+      const validation = validateBusinessHours(result.data.weekday, result.data.startTime, result.data.endTime);
+      if (!validation.valid) {
+        return res.status(400).json({ message: validation.message });
+      }
+
+      // Validate professional exists
+      const professional = await storage.getProfessional(result.data.professionalId);
+      if (!professional) {
+        return res.status(400).json({ message: "Profissional não encontrado" });
+      }
+
       const schedule = await storage.createServiceSchedule(result.data);
       res.status(201).json(schedule);
     } catch (error) {
@@ -359,10 +421,31 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
       }
 
-      const schedule = await storage.updateServiceSchedule(req.params.id, result.data);
-      if (!schedule) {
+      // Get existing schedule to merge with updates for validation
+      const existing = await storage.getServiceSchedule(req.params.id);
+      if (!existing) {
         return res.status(404).json({ message: "Horário não encontrado" });
       }
+
+      // Validate professional exists if being changed
+      if (result.data.professionalId) {
+        const professional = await storage.getProfessional(result.data.professionalId);
+        if (!professional) {
+          return res.status(400).json({ message: "Profissional não encontrado" });
+        }
+      }
+
+      const weekday = result.data.weekday ?? existing.weekday;
+      const startTime = result.data.startTime ?? existing.startTime;
+      const endTime = result.data.endTime ?? existing.endTime;
+
+      // Validate business hours
+      const validation = validateBusinessHours(weekday, startTime, endTime);
+      if (!validation.valid) {
+        return res.status(400).json({ message: validation.message });
+      }
+
+      const schedule = await storage.updateServiceSchedule(req.params.id, result.data);
       res.json(schedule);
     } catch (error) {
       next(error);

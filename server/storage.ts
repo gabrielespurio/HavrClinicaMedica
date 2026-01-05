@@ -240,6 +240,11 @@ export class PostgresStorage implements IStorage {
     return await db.select().from(serviceSchedules).orderBy(serviceSchedules.weekday, serviceSchedules.startTime);
   }
 
+  async getServiceSchedule(id: string): Promise<ServiceSchedule | undefined> {
+    const result = await db.select().from(serviceSchedules).where(eq(serviceSchedules.id, id)).limit(1);
+    return result[0];
+  }
+
   async getSchedulesByProfessional(professionalId: string): Promise<ServiceSchedule[]> {
     return await db
       .select()

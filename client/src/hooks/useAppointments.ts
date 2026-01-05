@@ -31,13 +31,27 @@ export function useAppointments(params?: {
   const url = queryString ? `/api/appointments?${queryString}` : "/api/appointments";
 
   return useQuery<Appointment[]>({
-    queryKey: ["/api/appointments", params],
+    queryKey: ["/api/appointments", params?.patientId, params?.date, params?.startDate, params?.endDate],
+    queryFn: async () => {
+      const response = await fetch(url, { credentials: "include" });
+      if (!response.ok) {
+        throw new Error("Failed to fetch appointments");
+      }
+      return response.json();
+    },
   });
 }
 
 export function useAppointment(id: string) {
   return useQuery<Appointment>({
-    queryKey: ["/api/appointments", id],
+    queryKey: ["/api/appointments", "single", id],
+    queryFn: async () => {
+      const response = await fetch(`/api/appointments/${id}`, { credentials: "include" });
+      if (!response.ok) {
+        throw new Error("Failed to fetch appointment");
+      }
+      return response.json();
+    },
     enabled: !!id,
   });
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Shell } from "@/components/layout/Shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -171,13 +172,14 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex flex-col h-full p-6 gap-6 overflow-auto">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-settings-title">Configurações</h1>
-        <p className="text-muted-foreground">Gerencie profissionais, tipos de atendimento e horários</p>
-      </div>
+    <Shell>
+      <div className="flex flex-col h-full p-6 gap-6 overflow-auto">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="text-settings-title">Configurações</h1>
+          <p className="text-muted-foreground">Gerencie profissionais, tipos de atendimento e horários</p>
+        </div>
 
-      <Tabs defaultValue="professionals" className="flex-1">
+        <Tabs defaultValue="professionals" className="flex-1">
         <TabsList className="grid w-full grid-cols-3 max-w-md">
           <TabsTrigger value="professionals" data-testid="tab-professionals">Profissionais</TabsTrigger>
           <TabsTrigger value="types" data-testid="tab-types">Tipos</TabsTrigger>
@@ -524,6 +526,7 @@ export default function Settings() {
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </Shell>
   );
 }

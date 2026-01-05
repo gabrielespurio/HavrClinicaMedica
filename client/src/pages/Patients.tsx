@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, MoreHorizontal, Loader2 } from "lucide-react";
-import { usePatients, type Patient } from "@/hooks/usePatients";
+import { usePatients, useUpdatePatient, type Patient } from "@/hooks/usePatients";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -41,6 +41,7 @@ import { PatientHistory } from "@/components/patients/PatientHistory";
 
 export default function Patients() {
   const { data: patients, isLoading } = usePatients();
+  const updatePatient = useUpdatePatient();
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
@@ -59,6 +60,15 @@ export default function Patients() {
   const handleCreate = () => {
     setEditingPatient(null);
     setIsDialogOpen(true);
+  };
+
+  const toggleStatus = async (patient: Patient) => {
+    await updatePatient.mutateAsync({
+      id: patient.id,
+      data: {
+        status: patient.status === "active" ? "inactive" : "active",
+      },
+    });
   };
 
   return (
@@ -141,14 +151,15 @@ export default function Patients() {
                   <TableHead>Nome</TableHead>
                   <TableHead>CPF</TableHead>
                   <TableHead>Telefone</TableHead>
-                  <TableHead>Data de Nascimento</TableHead>
+                  <TableHead>Plano (Fim)</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPatients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       Nenhum paciente encontrado.
                     </TableCell>
                   </TableRow>
@@ -164,7 +175,22 @@ export default function Patients() {
                       <TableCell>{patient.cpf}</TableCell>
                       <TableCell>{patient.phone}</TableCell>
                       <TableCell>
-                        {format(parseISO(patient.birthDate), "dd/MM/yyyy", { locale: ptBR })}
+                        {patient.planEndDate 
+                          ? format(parseISO(patient.planEndDate), "dd/MM/yyyy", { locale: ptBR })
+                          : "-"
+                        }
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={patient.status === "active" ? "default" : "destructive"}
+                          className={
+                            patient.status === "active"
+                              ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-emerald-200"
+                              : "bg-red-500/15 text-red-700 hover:bg-red-500/25 border-red-200"
+                          }
+                        >
+                          {patient.status === "active" ? "Ativo" : "Inativo"}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -178,6 +204,9 @@ export default function Patients() {
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleEdit(patient)} data-testid={`button-edit-${patient.id}`}>
                               Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => toggleStatus(patient)} data-testid={`button-toggle-${patient.id}`}>
+                              {patient.status === "active" ? "Desativar" : "Ativar"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

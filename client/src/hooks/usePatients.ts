@@ -1,14 +1,26 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+export type PatientAddress = {
+  cep: string;
+  state: string;
+  city: string;
+  neighborhood: string;
+  street: string;
+  number: string;
+};
+
 export type Patient = {
   id: string;
   name: string;
   cpf: string;
-  birthDate: string;
+  rg?: string | null;
   phone: string;
   email?: string | null;
-  address?: string | null;
+  status: string;
+  planStartDate?: string | null;
+  planEndDate?: string | null;
+  address?: PatientAddress | null;
   createdAt: Date;
   updatedAt: Date;
 };

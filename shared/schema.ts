@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, date, time } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, date, time, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -19,10 +19,20 @@ export const patients = pgTable("patients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   cpf: varchar("cpf", { length: 14 }).notNull().unique(),
-  birthDate: date("birth_date").notNull(),
+  rg: varchar("rg", { length: 20 }),
   phone: varchar("phone", { length: 20 }).notNull(),
   email: text("email"),
-  address: text("address"),
+  status: text("status").notNull().default("active"),
+  planStartDate: date("plan_start_date"),
+  planEndDate: date("plan_end_date"),
+  address: jsonb("address").$type<{
+    cep: string;
+    state: string;
+    city: string;
+    neighborhood: string;
+    street: string;
+    number: string;
+  }>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

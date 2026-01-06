@@ -132,6 +132,8 @@ export interface PersonAppointmentResult {
   data: string;
   hora: string;
   status: string;
+  tipo: string;
+  especialidade: string | null;
 }
 
 /**
@@ -163,6 +165,26 @@ export async function getAppointmentsByPerson(
   const allAppointments = await storage.getAppointmentsByPatient(patient.id);
   const today = dayjs().format("YYYY-MM-DD");
 
+  // Busca todos os profissionais para mapear a especialidade
+  const professionals = await storage.getAllProfessionals();
+  const profMap = new Map(professionals.map(p => [p.name, p.specialty]));
+
+  // Mapeamento de status para português
+  const statusMap: Record<string, string> = {
+    "scheduled": "Agendado",
+    "attended": "Atendido",
+    "in_progress": "Em Atendimento",
+    "cancelled": "Cancelado"
+  };
+
+  // Mapeamento de tipos para o padrão do sistema
+  const typeMap: Record<string, string> = {
+    "consulta": "Consulta",
+    "retorno": "Retorno",
+    "aplicacao": "Aplicação",
+    "aplicacao_tirzepatida": "Aplicação Tirzepatida"
+  };
+
   // Filtra agendamentos do dia atual em diante e ordena
   const futureAppointments = allAppointments
     .filter((apt) => apt.date >= today)
@@ -172,11 +194,18 @@ export async function getAppointmentsByPerson(
       return a.time.localeCompare(b.time);
     });
 
-  // Retorna apenas campos relevantes
-  return futureAppointments.map((apt) => ({
-    id: apt.id,
-    data: apt.date,
-    hora: apt.time.slice(0, 5),
-    status: apt.status,
-  }));
+  // Retorna campos relevantes com formatação solicitada
+  return futureAppointments.map((apt) => {
+    const rawType = apt.type.toLowerCase();
+    const formattedType = typeMap[rawType] || apt.type;
+    
+    return {
+      id: apt.id,
+      data: apt.date,
+      hora: apt.time.slice(0, 5),
+      status: statusMap[apt.status] || apt.status,
+      tipo: formattedType,
+      especialidade: profMap.get(apt.professional) || null,
+    };
+  });
 }

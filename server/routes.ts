@@ -230,6 +230,29 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/appointments/:id/reschedule", requireAuth, async (req, res, next) => {
+    try {
+      const { data, hora } = req.body;
+      if (!data || !hora) {
+        return res.status(400).json({ message: "Data e hora são obrigatórios para o reagendamento" });
+      }
+
+      const appointment = await storage.getAppointment(req.params.id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Agendamento não encontrado" });
+      }
+
+      const updated = await storage.updateAppointment(req.params.id, { 
+        date: data, 
+        time: hora,
+        status: "scheduled" // Reset status to scheduled when rescheduled
+      });
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.delete("/api/appointments/:id", requireAuth, async (req, res, next) => {
     try {
       const success = await storage.deleteAppointment(req.params.id);

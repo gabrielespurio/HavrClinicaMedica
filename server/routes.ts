@@ -634,19 +634,19 @@ export async function registerRoutes(
   // API 5 - Alterar horário de agendamento
   app.patch("/api/agenda/alterar-agendamento", async (req, res, next) => {
     try {
-      const { id, data, hora } = req.body;
+      const { id, data, hora } = req.query;
       if (!id || !data || !hora) {
-        return res.status(400).json({ message: "ID, data e hora são obrigatórios" });
+        return res.status(400).json({ message: "ID, data e hora são obrigatórios (via parâmetros da URL)" });
       }
 
-      const appointment = await storage.getAppointment(id);
+      const appointment = await storage.getAppointment(id as string);
       if (!appointment) {
         return res.status(404).json({ message: "Agendamento não encontrado" });
       }
 
-      const updated = await storage.updateAppointment(id, { 
-        date: data, 
-        time: hora,
+      const updated = await storage.updateAppointment(id as string, { 
+        date: data as string, 
+        time: hora as string,
         status: "scheduled"
       });
       res.json(updated);

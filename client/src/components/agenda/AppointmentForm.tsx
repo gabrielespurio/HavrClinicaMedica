@@ -309,7 +309,7 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
                 <SelectContent>
                   {activeTypes.map((type) => (
                     <SelectItem key={type.id} value={type.slug} data-testid={`option-type-${type.slug}`}>
-                      {type.name === "Tirzepatida" || type.name === "Tizerpatida" ? "Aplicação Tirzepatida" : type.name}
+                      {type.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

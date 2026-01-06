@@ -230,28 +230,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/appointments/:id/reschedule", requireAuth, async (req, res, next) => {
-    try {
-      const { data, hora } = req.body;
-      if (!data || !hora) {
-        return res.status(400).json({ message: "Data e hora são obrigatórios para o reagendamento" });
-      }
-
-      const appointment = await storage.getAppointment(req.params.id);
-      if (!appointment) {
-        return res.status(404).json({ message: "Agendamento não encontrado" });
-      }
-
-      const updated = await storage.updateAppointment(req.params.id, { 
-        date: data, 
-        time: hora,
-        status: "scheduled" // Reset status to scheduled when rescheduled
-      });
-      res.json(updated);
-    } catch (error) {
-      next(error);
-    }
-  });
+  // Removed authenticated reschedule route to avoid duplication with public version
 
   app.delete("/api/appointments/:id", requireAuth, async (req, res, next) => {
     try {
@@ -647,6 +626,30 @@ export async function registerRoutes(
         message: "Agendamento criado com sucesso",
         agendamento: appointment
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // API 5 - Alterar horário de agendamento
+  app.patch("/api/agenda/alterar-agendamento", async (req, res, next) => {
+    try {
+      const { id, data, hora } = req.body;
+      if (!id || !data || !hora) {
+        return res.status(400).json({ message: "ID, data e hora são obrigatórios" });
+      }
+
+      const appointment = await storage.getAppointment(id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Agendamento não encontrado" });
+      }
+
+      const updated = await storage.updateAppointment(id, { 
+        date: data, 
+        time: hora,
+        status: "scheduled"
+      });
+      res.json(updated);
     } catch (error) {
       next(error);
     }

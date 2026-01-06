@@ -128,6 +128,7 @@ export async function getAvailableSlots(
 }
 
 export interface PersonAppointmentResult {
+  id: number;
   data: string;
   hora: string;
   status: string;
@@ -173,6 +174,7 @@ export async function getAppointmentsByPerson(
 
   // Retorna apenas campos relevantes
   return futureAppointments.map((apt) => ({
+    id: apt.id,
     data: apt.date,
     hora: apt.time.slice(0, 5),
     status: apt.status,

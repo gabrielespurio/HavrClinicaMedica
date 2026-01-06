@@ -128,7 +128,7 @@ export async function getAvailableSlots(
 }
 
 export interface PersonAppointmentResult {
-  id: number;
+  id: string | number;
   data: string;
   hora: string;
   status: string;

@@ -541,7 +541,10 @@ export async function registerRoutes(
   // API 4 - Webhook WhatsApp para criar agendamentos
   app.post("/api/agenda/webhook-whatsapp", async (req, res, next) => {
     try {
-      const { cpf, telefone, data, hora, tipoId, profissionalId, notas } = req.body;
+      // Log for debugging
+      console.log("Receiving WhatsApp Webhook:", req.body);
+
+      const { cpf, telefone, data, hora, tipoId, profissionalId, notas, nome } = req.body;
 
       if (!cpf && !telefone) {
         return res.status(400).json({ message: "Informe CPF ou telefone do paciente" });

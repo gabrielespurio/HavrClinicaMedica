@@ -216,6 +216,20 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/appointments/:id/cancel", requireAuth, async (req, res, next) => {
+    try {
+      const appointment = await storage.getAppointment(req.params.id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Agendamento não encontrado" });
+      }
+
+      const updated = await storage.updateAppointment(req.params.id, { status: "cancelled" });
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.delete("/api/appointments/:id", requireAuth, async (req, res, next) => {
     try {
       const success = await storage.deleteAppointment(req.params.id);

@@ -194,7 +194,6 @@ export class PostgresStorage implements IStorage {
 
     // 2. "In Progress" -> "Attended"
     // We need to know the duration to calculate end time.
-    // For simplicity, we'll fetch them and check.
     const inProgress = await db
       .select()
       .from(appointments)
@@ -204,13 +203,17 @@ export class PostgresStorage implements IStorage {
     const typeMap = new Map(types.map(t => [t.name, t.durationMinutes]));
 
     for (const apt of inProgress) {
+      // Get duration based on type name (case insensitive match)
       const duration = typeMap.get(apt.type) || 30;
-      const [hours, minutes] = apt.time.split(":").map(Number);
-      const startTime = new Date(now);
-      startTime.setHours(hours, minutes, 0, 0);
       
+      // Calculate start time using the date and time from the record
+      const [year, month, day] = apt.date.split("-").map(Number);
+      const [hours, minutes] = apt.time.split(":").map(Number);
+      
+      const startTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
       const endTime = new Date(startTime.getTime() + duration * 60000);
       
+      // Only transition to "attended" if now is actually PAST the end time
       if (now >= endTime) {
         await this.updateAppointment(apt.id, { status: "attended" });
       }

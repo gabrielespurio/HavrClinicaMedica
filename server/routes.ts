@@ -550,7 +550,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Data e hora são obrigatórios" });
       }
 
-      // 1. Localizar ou validar paciente
+      // 1. Localizar ou validar paciente, ou criar pré-cadastro
       let patient;
       if (cpf) {
         patient = await storage.getPatientByCPF(cpf);
@@ -560,7 +560,22 @@ export async function registerRoutes(
       }
 
       if (!patient) {
-        return res.status(404).json({ message: "Paciente não encontrado. Cadastre o paciente primeiro." });
+        // Criar pré-cadastro automático
+        const { nome } = req.body;
+        patient = await storage.createPatient({
+          name: nome || "Paciente Pré-cadastrado (WhatsApp)",
+          cpf: cpf || `TMP-${Date.now()}`, // Fallback se não tiver CPF (o schema exige cpf único)
+          phone: telefone || "0000000000",
+          status: "active",
+          address: {
+            cep: "",
+            state: "",
+            city: "",
+            neighborhood: "",
+            street: "",
+            number: ""
+          }
+        });
       }
 
       // 2. Validar tipo de agendamento se fornecido, ou usar padrão

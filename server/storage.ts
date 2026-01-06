@@ -173,6 +173,49 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
+  async updateAppointmentStatuses(): Promise<void> {
+    const now = new Date();
+    const currentDate = format(now, "yyyy-MM-dd");
+    const currentTime = format(now, "HH:mm:ss");
+
+    // 1. "Scheduled" -> "In Progress"
+    // If appointment date is today AND time is <= now AND status is "scheduled"
+    await db
+      .update(appointments)
+      .set({ status: "in_progress", updatedAt: new Date() })
+      .where(
+        and(
+          eq(appointments.date, currentDate),
+          lte(appointments.time, currentTime),
+          eq(appointments.status, "scheduled")
+        )
+      );
+
+    // 2. "In Progress" -> "Attended"
+    // We need to know the duration to calculate end time.
+    // For simplicity, we'll fetch them and check.
+    const inProgress = await db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.status, "in_progress"));
+
+    const types = await this.getAllAppointmentTypes();
+    const typeMap = new Map(types.map(t => [t.name, t.durationMinutes]));
+
+    for (const apt of inProgress) {
+      const duration = typeMap.get(apt.type) || 30;
+      const [hours, minutes] = apt.time.split(":").map(Number);
+      const startTime = new Date(now);
+      startTime.setHours(hours, minutes, 0, 0);
+      
+      const endTime = new Date(startTime.getTime() + duration * 60000);
+      
+      if (now >= endTime) {
+        await this.updateAppointment(apt.id, { status: "attended" });
+      }
+    }
+  }
+
   async deleteAppointment(id: string): Promise<boolean> {
     const result = await db.delete(appointments).where(eq(appointments.id, id)).returning();
     return result.length > 0;

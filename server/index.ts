@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth } from "./auth";
+import { storage } from "./storage";
+import { format } from "date-fns";
 
 const app = express();
 const httpServer = createServer(app);
@@ -99,4 +101,17 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
     },
   );
+
+  // Background worker for appointment statuses
+  setInterval(async () => {
+    try {
+      // @ts-ignore - updateAppointmentStatuses exists on PostgresStorage
+      if (typeof storage.updateAppointmentStatuses === 'function') {
+        // @ts-ignore
+        await storage.updateAppointmentStatuses();
+      }
+    } catch (error) {
+      console.error("Error in background status worker:", error);
+    }
+  }, 60000); // Check every minute
 })();

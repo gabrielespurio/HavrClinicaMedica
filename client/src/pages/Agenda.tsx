@@ -86,7 +86,30 @@ export default function Agenda() {
     return patient?.name || "Paciente";
   };
 
-  const getTypeColor = (type: string) => {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "scheduled": return "bg-blue-100 text-blue-700 border-blue-200";
+      case "attended": return "bg-green-100 text-green-700 border-green-200";
+      case "in_progress": return "bg-amber-100 text-amber-700 border-amber-200";
+      case "cancelled": return "bg-red-100 text-red-700 border-red-200";
+      default: return "bg-gray-100 text-gray-700 border-gray-200";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "scheduled": return "Agendado";
+      case "attended": return "Atendido";
+      case "in_progress": return "Em atendimento";
+      case "cancelled": return "Cancelado";
+      default: return status;
+    }
+  };
+
+  const getTypeColor = (type: string, status?: string) => {
+    if (status && status !== "scheduled") {
+      return getStatusColor(status);
+    }
     switch (type) {
       case "consulta": return "bg-blue-100 text-blue-700 border-blue-200";
       case "retorno": return "bg-indigo-100 text-indigo-700 border-indigo-200";
@@ -143,7 +166,7 @@ export default function Agenda() {
               <div className="mt-2 space-y-1">
                 {dayAppointments.slice(0, 3).map((apt) => (
                   <div key={apt.id} onClick={(e) => handleAppointmentClick(e, apt)}>
-                    <div className={cn("text-[10px] px-1.5 py-0.5 rounded truncate border", getTypeColor(apt.type))}>
+                    <div className={cn("text-[10px] px-1.5 py-0.5 rounded truncate border", getTypeColor(apt.type, apt.status))}>
                       <span className="font-medium mr-1">{apt.time.slice(0, 5)}</span>
                       {getTypeLabel(apt.type)}
                     </div>
@@ -245,7 +268,7 @@ export default function Agenda() {
                                      style={{ top: `${topOffset}rem`, height: `${height}rem` }}
                                      onClick={(e) => handleAppointmentClick(e, apt)}
                                  >
-                                    <div className={cn("h-full w-full rounded border p-2 text-xs flex flex-col gap-1 shadow-sm transition-all hover:brightness-95 cursor-pointer", getTypeColor(apt.type))}>
+                                    <div className={cn("h-full w-full rounded border p-2 text-xs flex flex-col gap-1 shadow-sm transition-all hover:brightness-95 cursor-pointer", getTypeColor(apt.type, apt.status))}>
                                       <div className="font-semibold flex justify-between gap-1">
                                         <span className="truncate">{getTypeLabel(apt.type)}</span>
                                         <span>{apt.time.slice(0, 5)}</span>

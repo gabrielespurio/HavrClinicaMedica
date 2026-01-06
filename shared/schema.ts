@@ -110,7 +110,7 @@ export const appointments = pgTable("appointments", {
   date: date("date").notNull(),
   time: time("time").notNull(),
   professional: text("professional").notNull().default("Dr. Roberto Santos"),
-  status: text("status").notNull().default("scheduled"),
+  status: text("status").notNull().default("scheduled"), // "scheduled", "attended", "in_progress", "cancelled"
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

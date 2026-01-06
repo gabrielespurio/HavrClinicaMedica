@@ -34,6 +34,7 @@ const appointmentSchema = z.object({
   date: z.string(),
   time: z.string(),
   professional: z.string(),
+  status: z.string().optional(),
 });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
@@ -119,12 +120,14 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
       date: appointment.date,
       time: appointment.time.slice(0, 5),
       professional: appointment.professional,
+      status: appointment.status,
     } : {
       patientId: "",
       type: defaultType,
       date: format(defaultDate, "yyyy-MM-dd"),
       time: format(defaultDate, "HH:mm"),
       professional: defaultProfessional,
+      status: "scheduled",
     },
   });
 
@@ -220,7 +223,7 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
             date: data.date,
             time: data.time,
             professional: data.professional,
-            status: appointment.status,
+            status: data.status || appointment.status,
           }
         });
         toast({ title: "Agendamento atualizado com sucesso!" });
@@ -231,7 +234,7 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
           date: data.date,
           time: data.time,
           professional: data.professional,
-          status: "scheduled",
+          status: data.status || "scheduled",
         });
         toast({ title: "Agendamento realizado com sucesso!" });
       }
@@ -358,6 +361,30 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
             <AlertDescription>{validation.message}</AlertDescription>
           </Alert>
         )}
+
+        <FormField
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Status do Agendamento</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger data-testid="select-status">
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="scheduled">Agendado</SelectItem>
+                  <SelectItem value="in_progress">Em atendimento</SelectItem>
+                  <SelectItem value="attended">Atendido</SelectItem>
+                  <SelectItem value="cancelled">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}

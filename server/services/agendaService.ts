@@ -182,8 +182,9 @@ export async function getAppointmentsByPerson(
     "consulta": "Consulta",
     "retorno": "Retorno",
     "aplicacao": "Aplicação",
-    "tizerpatida": "Aplicação Tizerpatida",
-    "aplicacao_tirzepatida": "Aplicação Tizerpatida"
+    "tirzepatida": "Aplicação Tirzepatida",
+    "tizerpatida": "Aplicação Tirzepatida",
+    "aplicacao_tirzepatida": "Aplicação Tirzepatida"
   };
 
   // Filtra agendamentos do dia atual em diante e ordena

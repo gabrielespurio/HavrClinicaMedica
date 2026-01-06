@@ -22,7 +22,8 @@ export function PatientHistory({ patientId }: PatientHistoryProps) {
   const typeLabels: Record<string, string> = {
     consulta: "Consulta",
     retorno: "Retorno",
-    tirzepatida: "Tirzepatida",
+    tirzepatida: "Aplicação Tirzepatida",
+    tizerpatida: "Aplicação Tirzepatida",
     aplicacao: "Aplicação",
   };
 

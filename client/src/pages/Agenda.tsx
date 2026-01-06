@@ -120,10 +120,12 @@ export default function Agenda() {
   };
 
   const getTypeLabel = (type: string) => {
-    switch (type) {
+    const t = type.toLowerCase();
+    switch (t) {
       case "consulta": return "Consulta";
       case "retorno": return "Retorno";
-      case "tirzepatida": return "Tirzepatida";
+      case "tirzepatida":
+      case "tizerpatida": return "Aplicação Tirzepatida";
       case "aplicacao": return "Aplicação";
       default: return type;
     }

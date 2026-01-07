@@ -609,13 +609,15 @@ export async function registerRoutes(
       // 5. Garantir existência do paciente (ou criar pré-cadastro se novo)
       let targetPatient = patient;
       if (!targetPatient) {
+        // Garantir que o CPF gerado tenha no máximo 14 caracteres se for usado em constraints antigas
+        // Embora tenhamos aumentado para 30, vamos manter um padrão seguro.
+        const tempCpf = `WA-${Date.now().toString().slice(-11)}`; 
+        
         targetPatient = await storage.createPatient({
           name: "Novo Paciente (WhatsApp)",
-          cpf: `TMP-${Date.now()}`,
+          cpf: tempCpf,
           phone: telefone,
-          status: "active", // Criamos como ativo para permitir o agendamento inicial, ou mantemos lógica? 
-          // O usuário disse: "paciente novo só pode criar consulta". 
-          // Se for novo, a regra lá em cima já barrou se não for consulta.
+          status: "active", 
           address: { cep: "", state: "", city: "", neighborhood: "", street: "", number: "" }
         });
       }

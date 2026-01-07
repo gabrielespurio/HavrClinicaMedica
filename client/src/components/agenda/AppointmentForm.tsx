@@ -107,10 +107,10 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
     return map;
   }, [activeProfessionals]);
 
-  const defaultType = activeTypes.length > 0 ? activeTypes[0].slug : "consulta";
-  const defaultProfessional = activeTypes.length > 0 && activeTypes[0].defaultProfessionalId
+  const defaultType = appointment ? appointment.type : (activeTypes.length > 0 ? activeTypes[0].slug : "consulta");
+  const defaultProfessional = appointment ? appointment.professional : (activeTypes.length > 0 && activeTypes[0].defaultProfessionalId
     ? professionalMap.get(activeTypes[0].defaultProfessionalId) || activeProfessionals[0]?.name || ""
-    : activeProfessionals[0]?.name || "";
+    : activeProfessionals[0]?.name || "");
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
@@ -141,7 +141,17 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
 
   // Reset form with proper defaults when data loads
   useEffect(() => {
-    if (appointment) return;
+    if (appointment) {
+      form.reset({
+        patientId: appointment.patientId,
+        type: appointment.type,
+        date: appointment.date,
+        time: appointment.time.slice(0, 5),
+        professional: appointment.professional,
+        status: appointment.status,
+      });
+      return;
+    }
     if (activeTypes.length === 0 || activeProfessionals.length === 0) return;
     
     const currentType = form.getValues("type");

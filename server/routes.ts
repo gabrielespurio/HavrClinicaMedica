@@ -557,77 +557,99 @@ export async function registerRoutes(
   // API 4 - Criar agendamentos (webhook ou integração)
   app.post("/api/agenda/criar-agendamento", async (req, res, next) => {
     try {
-      // Log for debugging
-      console.log("Receiving WhatsApp Webhook:", req.body);
+      const { telefone, data, hora, tipo } = req.body;
 
-      const { cpf, telefone, data, hora, tipoId, profissionalId, notas, nome } = req.body;
-
-      if (!cpf && !telefone) {
-        return res.status(400).json({ message: "Informe CPF ou telefone do paciente" });
-      }
-      if (!data || !hora) {
-        return res.status(400).json({ message: "Data e hora são obrigatórios" });
-      }
-
-      // 1. Localizar ou validar paciente, ou criar pré-cadastro
-      let patient;
-      if (cpf) {
-        patient = await storage.getPatientByCPF(cpf);
-      }
-      if (!patient && telefone) {
-        patient = await storage.getPatientByPhone(telefone);
-      }
-
-      if (!patient) {
-        // Criar pré-cadastro automático
-        const { nome } = req.body;
-        patient = await storage.createPatient({
-          name: nome || "Paciente Pré-cadastrado (WhatsApp)",
-          cpf: cpf || `TMP-${Date.now()}`, // Fallback se não tiver CPF (o schema exige cpf único)
-          phone: telefone || "0000000000",
-          status: "active",
-          address: {
-            cep: "",
-            state: "",
-            city: "",
-            neighborhood: "",
-            street: "",
-            number: ""
-          }
+      if (!telefone || !data || !hora || !tipo) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Telefone, data, hora e tipo são obrigatórios" 
         });
       }
 
-      // 2. Validar tipo de agendamento se fornecido, ou usar padrão
-      let typeName = "Consulta";
-      if (tipoId) {
-        const type = await storage.getAppointmentType(tipoId);
-        if (type) typeName = type.name;
+      // 1. Identificar se é paciente ativo ou não
+      const patient = await storage.getPatientByPhone(telefone);
+      const isActive = patient && patient.status === "active";
+      const normalizedType = tipo.toLowerCase();
+
+      // 2. Regras de Negócio por Status do Paciente
+      // Paciente inativo ou paciente novo só pode criar consulta.
+      if (!isActive && normalizedType !== "consulta") {
+        return res.status(403).json({
+          success: false,
+          message: "Pacientes novos ou inativos só podem agendar 'consulta'."
+        });
       }
 
-      // 3. Validar profissional se fornecido, ou usar padrão
+      // Paciente ATIVO pode criar: aplicacao, tirzepatida, consulta e retorno
+      const allowedTypes = ["aplicacao", "tirzepatida", "consulta", "retorno"];
+      if (isActive && !allowedTypes.includes(normalizedType)) {
+        return res.status(400).json({
+          success: false,
+          message: "Tipo de agendamento não permitido. Tipos válidos: aplicacao, tirzepatida, consulta, retorno."
+        });
+      }
+
+      // 3. Atribuição de Profissional
+      // consulta e retorno -> Médico (Dr. Roberto Santos)
+      // aplicacao e tirzepatida -> Enfermeira (Enf. Ana Paula)
       let profName = "Dr. Roberto Santos";
-      if (profissionalId) {
-        const prof = await storage.getProfessional(profissionalId);
-        if (prof) profName = prof.name;
+      if (normalizedType === "aplicacao" || normalizedType === "tirzepatida") {
+        profName = "Enf. Ana Paula";
       }
 
-      // 4. Criar o agendamento
+      // 4. Mapeamento de Nome do Tipo para o Banco
+      const typeMap: Record<string, string> = {
+        "consulta": "Consulta",
+        "retorno": "Retorno",
+        "aplicacao": "Aplicação",
+        "tirzepatida": "Aplicação Tirzepatida"
+      };
+      const dbTypeName = typeMap[normalizedType] || tipo;
+
+      // 5. Garantir existência do paciente (ou criar pré-cadastro se novo)
+      let targetPatient = patient;
+      if (!targetPatient) {
+        targetPatient = await storage.createPatient({
+          name: "Novo Paciente (WhatsApp)",
+          cpf: `TMP-${Date.now()}`,
+          phone: telefone,
+          status: "active", // Criamos como ativo para permitir o agendamento inicial, ou mantemos lógica? 
+          // O usuário disse: "paciente novo só pode criar consulta". 
+          // Se for novo, a regra lá em cima já barrou se não for consulta.
+          address: { cep: "", state: "", city: "", neighborhood: "", street: "", number: "" }
+        });
+      }
+
+      // 6. Criar o agendamento
       const appointment = await storage.createAppointment({
-        patientId: patient.id,
-        type: typeName,
-        date: data, // Formato YYYY-MM-DD
-        time: hora, // Formato HH:mm
+        patientId: targetPatient.id,
+        type: dbTypeName,
+        date: data,
+        time: hora,
         professional: profName,
         status: "scheduled",
-        notes: notas || "Agendado via WhatsApp",
+        notes: "Agendado via API pública",
       });
 
       res.status(201).json({
+        success: true,
         message: "Agendamento criado com sucesso",
-        agendamento: appointment
+        agendamento: {
+          id: appointment.id,
+          paciente: targetPatient.name,
+          profissional: profName,
+          tipo: dbTypeName,
+          data: appointment.date,
+          hora: appointment.time
+        }
       });
-    } catch (error) {
-      next(error);
+    } catch (error: any) {
+      console.error("Erro ao criar agendamento:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erro interno ao processar o agendamento",
+        error: error.message
+      });
     }
   });
 

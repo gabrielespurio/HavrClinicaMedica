@@ -557,12 +557,12 @@ export async function registerRoutes(
   // API 4 - Criar agendamentos (webhook ou integração)
   app.post("/api/agenda/criar-agendamento", async (req, res, next) => {
     try {
-      const { telefone, data, hora, tipo } = req.body;
+      const { telefone, nome, data, hora, tipo } = req.body;
 
-      if (!telefone || !data || !hora || !tipo) {
+      if (!telefone || !nome || !data || !hora || !tipo) {
         return res.status(400).json({ 
           success: false, 
-          message: "Telefone, data, hora e tipo são obrigatórios" 
+          message: "Telefone, nome, data, hora e tipo são obrigatórios" 
         });
       }
 
@@ -572,7 +572,6 @@ export async function registerRoutes(
       const normalizedType = tipo.toLowerCase();
 
       // 2. Regras de Negócio por Status do Paciente
-      // Paciente inativo ou paciente novo só pode criar consulta.
       if (!isActive && normalizedType !== "consulta") {
         return res.status(403).json({
           success: false,
@@ -580,7 +579,6 @@ export async function registerRoutes(
         });
       }
 
-      // Paciente ATIVO pode criar: aplicacao, tirzepatida, consulta e retorno
       const allowedTypes = ["aplicacao", "tirzepatida", "consulta", "retorno"];
       if (isActive && !allowedTypes.includes(normalizedType)) {
         return res.status(400).json({
@@ -590,8 +588,6 @@ export async function registerRoutes(
       }
 
       // 3. Atribuição de Profissional
-      // consulta e retorno -> Médico (Dr. Roberto Santos)
-      // aplicacao e tirzepatida -> Enfermeira (Enf. Ana Paula)
       let profName = "Dr. Roberto Santos";
       if (normalizedType === "aplicacao" || normalizedType === "tirzepatida") {
         profName = "Enf. Ana Paula";
@@ -609,12 +605,10 @@ export async function registerRoutes(
       // 5. Garantir existência do paciente (ou criar pré-cadastro se novo)
       let targetPatient = patient;
       if (!targetPatient) {
-        // Garantir que o CPF gerado tenha no máximo 14 caracteres se for usado em constraints antigas
-        // Embora tenhamos aumentado para 30, vamos manter um padrão seguro.
         const tempCpf = `WA-${Date.now().toString().slice(-11)}`; 
         
         targetPatient = await storage.createPatient({
-          name: "Novo Paciente (WhatsApp)",
+          name: nome, // Usando o nome obrigatório enviado na API
           cpf: tempCpf,
           phone: telefone,
           status: "active", 

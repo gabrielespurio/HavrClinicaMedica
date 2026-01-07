@@ -225,6 +225,38 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Horário fora da escala do profissional" });
       }
 
+      // Validate time conflicts
+      const allAppointments = await storage.getAllAppointments();
+      const sameDayAppointments = allAppointments.filter((a: any) => a.date === result.data.date && a.status !== "cancelled");
+
+      const isMedicalType = (t: string) => ["consulta", "retorno", "Consulta", "Retorno"].includes(t);
+      const isNursingType = (t: string) => ["aplicacao", "tirzepatida", "Aplicação", "Aplicação Tirzepatida"].includes(t);
+
+      const hasConflict = sameDayAppointments.some((a: any) => {
+        // Normalize time comparison (remove seconds if present)
+        const aptTime = a.time.slice(0, 5);
+        const newTime = result.data.time.slice(0, 5);
+        if (aptTime !== newTime) return false;
+
+        // Medical types conflict with each other
+        if (isMedicalType(result.data.type)) {
+          return isMedicalType(a.type);
+        }
+
+        // Nursing types conflict with each other
+        if (isNursingType(result.data.type)) {
+          return isNursingType(a.type);
+        }
+
+        return false;
+      });
+
+      if (hasConflict) {
+        return res.status(409).json({
+          message: `Já existe um agendamento de ${isMedicalType(result.data.type) ? "médico" : "enfermagem"} marcado para este horário (${result.data.time}).`
+        });
+      }
+
       const appointment = await storage.createAppointment(result.data);
       res.status(201).json(appointment);
     } catch (error) {

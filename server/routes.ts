@@ -554,8 +554,8 @@ export async function registerRoutes(
     }
   });
 
-  // API 4 - Webhook WhatsApp para criar agendamentos
-  app.post("/api/agenda/webhook-whatsapp", async (req, res, next) => {
+  // API 4 - Criar agendamentos (webhook ou integração)
+  app.post("/api/agenda/criar-agendamento", async (req, res, next) => {
     try {
       // Log for debugging
       console.log("Receiving WhatsApp Webhook:", req.body);

@@ -192,8 +192,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Paciente não encontrado" });
       }
 
-      // Validate professional exists
-      const professional = await storage.getProfessional(result.data.professionalId);
+      // Validate professional exists by name
+      const allProfessionals = await storage.getAllProfessionals();
+      const professional = allProfessionals.find(p => p.name === result.data.professional);
       if (!professional) {
         return res.status(400).json({ message: "Profissional não encontrado" });
       }

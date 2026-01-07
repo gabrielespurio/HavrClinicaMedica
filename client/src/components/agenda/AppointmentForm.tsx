@@ -142,22 +142,16 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   // Reset form with proper defaults when data loads
   useEffect(() => {
     if (appointment) {
-      // We only want to reset when the appointment object itself changes (e.g. opening a different one)
-      // or if it's the first time it's being loaded into the form.
-      // We check if the form's current values match the appointment to avoid resetting while the user is typing.
-      const currentValues = form.getValues();
-      const isFirstLoad = !form.formState.isDirty;
-      
-      if (isFirstLoad) {
-        form.reset({
-          patientId: appointment.patientId,
-          type: appointment.type,
-          date: appointment.date,
-          time: appointment.time.slice(0, 5),
-          professional: appointment.professional,
-          status: appointment.status,
-        });
-      }
+      // Use a stable reference or a effect that only runs once when appointment is set
+      // instead of checking isDirty which might not update fast enough to prevent loops
+      form.reset({
+        patientId: appointment.patientId,
+        type: appointment.type,
+        date: appointment.date,
+        time: appointment.time.slice(0, 5),
+        professional: appointment.professional,
+        status: appointment.status,
+      });
       return;
     }
     if (activeTypes.length === 0 || activeProfessionals.length === 0) return;
@@ -179,7 +173,8 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
         form.setValue("professional", defaultProfName, { shouldValidate: true });
       }
     }
-  }, [activeTypes, activeProfessionals, professionalMap, form, appointment]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointment?.id, activeTypes.length, activeProfessionals.length]);
 
   // Update professional when type changes
   useEffect(() => {

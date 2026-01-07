@@ -192,6 +192,38 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Paciente não encontrado" });
       }
 
+      // Validate professional exists
+      const professional = await storage.getProfessional(result.data.professionalId);
+      if (!professional) {
+        return res.status(400).json({ message: "Profissional não encontrado" });
+      }
+
+      // Validate scale conflict for manual booking
+      const [year, month, day] = result.data.date.split("-").map(Number);
+      const bookingDate = new Date(year, month - 1, day);
+      const weekday = bookingDate.getDay();
+      const allSchedules = await storage.getAllServiceSchedules();
+      const profSchedules = allSchedules.filter(s => s.professionalId === professional.id && s.weekday === weekday && s.isActive);
+      
+      if (profSchedules.length === 0) {
+        return res.status(400).json({ message: "O profissional não atende neste dia da semana" });
+      }
+
+      const parseTime = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        return h * 60 + m;
+      };
+      const bookingMinutes = parseTime(result.data.time);
+      const isWithinScale = profSchedules.some(s => {
+        const start = parseTime(s.startTime);
+        const end = parseTime(s.endTime);
+        return bookingMinutes >= start && bookingMinutes < end;
+      });
+
+      if (!isWithinScale) {
+        return res.status(400).json({ message: "Horário fora da escala do profissional" });
+      }
+
       const appointment = await storage.createAppointment(result.data);
       res.status(201).json(appointment);
     } catch (error) {
@@ -616,14 +648,53 @@ export async function registerRoutes(
         });
       }
 
-      // 6. Verificar conflitos de horário
-      const allAppointments = await storage.getAppointments();
-      const sameDayAppointments = allAppointments.filter(a => a.date === data && a.status !== "cancelled");
+      // 6. Verificar escala do profissional
+      const [year, month, day] = data.split("-").map(Number);
+      const bookingDate = new Date(year, month - 1, day);
+      const weekday = bookingDate.getDay(); // 0 (Sun) to 6 (Sat)
+      
+      const allSchedules = await storage.getAllServiceSchedules();
+      const allProfs = await storage.getAllProfessionals();
+      const currentProf = allProfs.find(p => p.name === profName);
+      
+      if (currentProf) {
+        const profSchedules = allSchedules.filter(s => s.professionalId === currentProf.id && s.weekday === weekday && s.isActive);
+        
+        if (profSchedules.length > 0) {
+          const parseTime = (t: string) => {
+            const [h, m] = t.split(":").map(Number);
+            return h * 60 + m;
+          };
+          
+          const bookingMinutes = parseTime(hora);
+          const isWithinScale = profSchedules.some(s => {
+            const start = parseTime(s.startTime);
+            const end = parseTime(s.endTime);
+            return bookingMinutes >= start && bookingMinutes < end;
+          });
+          
+          if (!isWithinScale) {
+            return res.status(400).json({
+              success: false,
+              message: `O profissional ${profName} não possui escala configurada para este horário (${hora}) neste dia da semana.`
+            });
+          }
+        } else {
+           return res.status(400).json({
+            success: false,
+            message: `O profissional ${profName} não atende neste dia da semana.`
+          });
+        }
+      }
+
+      // 7. Verificar conflitos de horário (já implementado anteriormente)
+      const allAppointments = await storage.getAllAppointments();
+      const sameDayAppointments = allAppointments.filter((a: any) => a.date === data && a.status !== "cancelled");
 
       const isMedicalType = (t: string) => ["consulta", "retorno", "Consulta", "Retorno"].includes(t);
       const isNursingType = (t: string) => ["aplicacao", "tirzepatida", "Aplicação", "Aplicação Tirzepatida"].includes(t);
 
-      const hasConflict = sameDayAppointments.some(a => {
+      const hasConflict = sameDayAppointments.some((a: any) => {
         if (a.time !== `${hora}:00` && a.time !== hora) return false;
 
         // Se o novo é médico (consulta/retorno)

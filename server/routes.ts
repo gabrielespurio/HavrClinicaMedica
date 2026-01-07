@@ -616,7 +616,39 @@ export async function registerRoutes(
         });
       }
 
-      // 6. Criar o agendamento
+      // 6. Verificar conflitos de horário
+      const allAppointments = await storage.getAppointments();
+      const sameDayAppointments = allAppointments.filter(a => a.date === data && a.status !== "cancelled");
+
+      const isMedicalType = (t: string) => ["consulta", "retorno", "Consulta", "Retorno"].includes(t);
+      const isNursingType = (t: string) => ["aplicacao", "tirzepatida", "Aplicação", "Aplicação Tirzepatida"].includes(t);
+
+      const hasConflict = sameDayAppointments.some(a => {
+        if (a.time !== `${hora}:00` && a.time !== hora) return false;
+
+        // Se o novo é médico (consulta/retorno)
+        if (isMedicalType(dbTypeName)) {
+          // Conflita se já existe um médico no mesmo horário
+          return isMedicalType(a.type);
+        }
+
+        // Se o novo é enfermagem (aplicação/tirzepatida)
+        if (isNursingType(dbTypeName)) {
+          // Conflita se já existe um enfermagem no mesmo horário
+          return isNursingType(a.type);
+        }
+
+        return false;
+      });
+
+      if (hasConflict) {
+        return res.status(409).json({
+          success: false,
+          message: `Já existe um agendamento de ${isMedicalType(dbTypeName) ? "médico" : "enfermagem"} marcado para este horário (${hora}).`
+        });
+      }
+
+      // 7. Criar o agendamento
       const appointment = await storage.createAppointment({
         patientId: targetPatient.id,
         type: dbTypeName,

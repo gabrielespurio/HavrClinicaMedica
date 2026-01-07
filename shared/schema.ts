@@ -75,9 +75,9 @@ export type ServiceSchedule = typeof serviceSchedules.$inferSelect;
 export const patients = pgTable("patients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  cpf: varchar("cpf", { length: 14 }).notNull().unique(),
-  rg: varchar("rg", { length: 20 }),
-  phone: varchar("phone", { length: 20 }).notNull(),
+  cpf: varchar("cpf", { length: 30 }).notNull().unique(),
+  rg: varchar("rg", { length: 30 }),
+  phone: varchar("phone", { length: 30 }).notNull(),
   email: text("email"),
   status: text("status").notNull().default("active"),
   planStartDate: date("plan_start_date"),

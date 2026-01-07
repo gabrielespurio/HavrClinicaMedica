@@ -248,7 +248,7 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
     }
   };
 
-  const isReadOnly = !!appointment;
+  const isReadOnly = false;
   const isLoading = isLoadingPatients || isLoadingTypes || isLoadingProfessionals;
 
   if (isLoading) {
@@ -403,21 +403,19 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
           )}
         />
 
-        <div className="flex justify-end pt-2">
-          {!isReadOnly && (
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isPending || !validation.valid} 
-              data-testid="button-confirm-appointment"
-            >
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirmar Agendamento
-            </Button>
-          )}
-          {isReadOnly && (
+        <div className="flex justify-end pt-2 gap-2">
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={isPending || !validation.valid} 
+            data-testid="button-confirm-appointment"
+          >
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {appointment ? "Salvar Alterações" : "Confirmar Agendamento"}
+          </Button>
+          {appointment && (
             <Button type="button" variant="outline" className="w-full" onClick={onSuccess}>
-              Fechar
+              Cancelar
             </Button>
           )}
         </div>

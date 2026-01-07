@@ -142,16 +142,13 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   // Reset form with proper defaults when data loads
   useEffect(() => {
     if (appointment) {
-      // Use a flag or check to prevent infinite loop
+      // We only want to reset when the appointment object itself changes (e.g. opening a different one)
+      // or if it's the first time it's being loaded into the form.
+      // We check if the form's current values match the appointment to avoid resetting while the user is typing.
       const currentValues = form.getValues();
-      if (
-        currentValues.patientId !== appointment.patientId ||
-        currentValues.type !== appointment.type ||
-        currentValues.date !== appointment.date ||
-        currentValues.time !== appointment.time.slice(0, 5) ||
-        currentValues.professional !== appointment.professional ||
-        currentValues.status !== appointment.status
-      ) {
+      const isFirstLoad = !form.formState.isDirty;
+      
+      if (isFirstLoad) {
         form.reset({
           patientId: appointment.patientId,
           type: appointment.type,

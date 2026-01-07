@@ -142,14 +142,25 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   // Reset form with proper defaults when data loads
   useEffect(() => {
     if (appointment) {
-      form.reset({
-        patientId: appointment.patientId,
-        type: appointment.type,
-        date: appointment.date,
-        time: appointment.time.slice(0, 5),
-        professional: appointment.professional,
-        status: appointment.status,
-      });
+      // Use a flag or check to prevent infinite loop
+      const currentValues = form.getValues();
+      if (
+        currentValues.patientId !== appointment.patientId ||
+        currentValues.type !== appointment.type ||
+        currentValues.date !== appointment.date ||
+        currentValues.time !== appointment.time.slice(0, 5) ||
+        currentValues.professional !== appointment.professional ||
+        currentValues.status !== appointment.status
+      ) {
+        form.reset({
+          patientId: appointment.patientId,
+          type: appointment.type,
+          date: appointment.date,
+          time: appointment.time.slice(0, 5),
+          professional: appointment.professional,
+          status: appointment.status,
+        });
+      }
       return;
     }
     if (activeTypes.length === 0 || activeProfessionals.length === 0) return;
@@ -165,10 +176,10 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
         : activeProfessionals[0]?.name;
       
       if (!currentType || !activeTypes.find(t => t.slug === currentType)) {
-        form.setValue("type", firstType.slug);
+        form.setValue("type", firstType.slug, { shouldValidate: true });
       }
       if (!currentProfessional && defaultProfName) {
-        form.setValue("professional", defaultProfName);
+        form.setValue("professional", defaultProfName, { shouldValidate: true });
       }
     }
   }, [activeTypes, activeProfessionals, professionalMap, form, appointment]);

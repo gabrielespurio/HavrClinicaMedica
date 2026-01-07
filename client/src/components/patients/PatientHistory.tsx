@@ -1,4 +1,4 @@
-import { useAppointments, type Appointment } from "@/hooks/useAppointments";
+import { useAppointments, useUpdateAppointment, type Appointment } from "@/hooks/useAppointments";
 import {
   Table,
   TableBody,
@@ -10,7 +10,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, Clock, FileText, Loader2, User, Stethoscope } from "lucide-react";
+import { Calendar, Clock, FileText, Loader2, User, Edit, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AppointmentForm } from "@/components/agenda/AppointmentForm";
+import { useToast } from "@/hooks/use-toast";
 
 interface PatientHistoryProps {
   patientId: string;
@@ -18,6 +28,10 @@ interface PatientHistoryProps {
 
 export function PatientHistory({ patientId }: PatientHistoryProps) {
   const { data: appointments, isLoading } = useAppointments({ patientId });
+  const updateAppointment = useUpdateAppointment();
+  const { toast } = useToast();
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const typeLabels: Record<string, string> = {
     consulta: "Consulta",
@@ -32,6 +46,29 @@ export function PatientHistory({ patientId }: PatientHistoryProps) {
     retorno: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
     tirzepatida: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
     aplicacao: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
+  };
+
+  const handleEdit = (apt: Appointment) => {
+    setEditingAppointment(apt);
+    setIsDialogOpen(true);
+  };
+
+  const handleCancel = async (apt: Appointment) => {
+    if (confirm("Tem certeza que deseja cancelar este agendamento?")) {
+      try {
+        await updateAppointment.mutateAsync({
+          id: apt.id,
+          data: { ...apt, status: "cancelled" }
+        });
+        toast({ title: "Agendamento cancelado com sucesso!" });
+      } catch (error: any) {
+        toast({
+          title: "Erro ao cancelar agendamento",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   if (isLoading) {
@@ -63,6 +100,7 @@ export function PatientHistory({ patientId }: PatientHistoryProps) {
               <TableHead className="w-[110px]">Tipo</TableHead>
               <TableHead>Profissional</TableHead>
               <TableHead>Observações</TableHead>
+              <TableHead className="w-[100px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -104,6 +142,29 @@ export function PatientHistory({ patientId }: PatientHistoryProps) {
                     <span className="text-sm text-muted-foreground/50">-</span>
                   )}
                 </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => handleEdit(apt)}
+                      title="Editar"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleCancel(apt)}
+                      disabled={apt.status === "cancelled"}
+                      title="Cancelar"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -112,6 +173,21 @@ export function PatientHistory({ patientId }: PatientHistoryProps) {
       <p className="text-xs text-muted-foreground text-center">
         Total de {appointments.length} atendimento{appointments.length !== 1 ? 's' : ''} registrado{appointments.length !== 1 ? 's' : ''}
       </p>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Agendamento</DialogTitle>
+          </DialogHeader>
+          {editingAppointment && (
+            <AppointmentForm
+              defaultDate={parseISO(editingAppointment.date)}
+              appointment={editingAppointment}
+              onSuccess={() => setIsDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -149,15 +149,17 @@ export default function Agenda() {
         {days.map((day) => {
           const dayAppointments = getAppointmentsForDate(day);
           const isCurrentMonth = isSameMonth(day, viewDate);
+          const isWeekend = day.getDay() === 0 || day.getDay() === 6;
           
           return (
             <div
               key={day.toString()}
               className={cn(
                 "min-h-[100px] bg-card p-2 hover:bg-muted/5 transition-colors cursor-pointer border-b border-r",
-                !isCurrentMonth && "bg-muted/5 text-muted-foreground"
+                !isCurrentMonth && "bg-muted/5 text-muted-foreground",
+                isWeekend && "bg-muted/10 pointer-events-none opacity-60"
               )}
-              onClick={() => handleSlotClick(setHours(day, 9))}
+              onClick={() => !isWeekend && handleSlotClick(setHours(day, 9))}
             >
               <div className={cn(
                   "flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium",
@@ -404,7 +406,7 @@ export default function Agenda() {
 
         <div className="flex-1 min-h-0">
             {viewMode === "month" && renderMonthView()}
-            {viewMode === "week" && renderTimeGridView(eachDayOfInterval({ start: startOfWeek(viewDate), end: endOfWeek(viewDate) }))}
+            {viewMode === "week" && renderTimeGridView(eachDayOfInterval({ start: startOfWeek(viewDate), end: endOfWeek(viewDate) }).filter(d => d.getDay() !== 0 && d.getDay() !== 6))}
             {viewMode === "day" && renderTimeGridView([viewDate])}
         </div>
       </div>

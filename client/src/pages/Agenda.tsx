@@ -78,7 +78,9 @@ export default function Agenda() {
   };
 
   const getAppointmentsForDate = (date: Date) => {
-    return (appointments || []).filter((apt) => isSameDay(parseISO(apt.date), date));
+    return (appointments || []).filter(
+      (apt) => isSameDay(parseISO(apt.date), date) && apt.status !== "cancelled"
+    );
   };
 
   const getPatientName = (patientId: string) => {

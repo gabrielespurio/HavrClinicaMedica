@@ -256,8 +256,17 @@ export default function Agenda() {
                              ></div>
                          ))}
                          
-                         {dayAppointments.map((apt) => {
-                             const [hourStr, minStr] = apt.time.split(':');
+                         {(() => {
+                           const groupedAppointments: Record<string, Appointment[]> = {};
+                           dayAppointments.forEach(apt => {
+                             if (!groupedAppointments[apt.time]) {
+                               groupedAppointments[apt.time] = [];
+                             }
+                             groupedAppointments[apt.time].push(apt);
+                           });
+
+                           return Object.entries(groupedAppointments).map(([time, appointmentsAtTime]) => {
+                             const [hourStr, minStr] = time.split(':');
                              const hour = parseInt(hourStr, 10);
                              const minutes = parseInt(minStr, 10);
                              const topOffset = (hour - 9 + minutes / 60) * 5;
@@ -265,25 +274,38 @@ export default function Agenda() {
                              
                              if (hour < 9 || hour > 17) return null;
                              
-                             return (
+                             const count = appointmentsAtTime.length;
+                             
+                             return appointmentsAtTime.map((apt, index) => {
+                               const width = 100 / count;
+                               const left = index * width;
+
+                               return (
                                  <div
                                      key={apt.id}
-                                     className="absolute inset-x-1 p-1 z-10"
-                                     style={{ top: `${topOffset}rem`, height: `${height}rem` }}
+                                     className="absolute p-0.5 z-10"
+                                     style={{ 
+                                       top: `${topOffset}rem`, 
+                                       height: `${height}rem`,
+                                       left: `${left}%`,
+                                       width: `${width}%`
+                                     }}
                                      onClick={(e) => handleAppointmentClick(e, apt)}
                                  >
-                                    <div className={cn("h-full w-full rounded border p-2 text-xs flex flex-col gap-1 shadow-sm transition-all hover:brightness-95 cursor-pointer", getTypeColor(apt.type, apt.status))}>
-                                      <div className="font-semibold flex justify-between gap-1">
+                                    <div className={cn("h-full w-full rounded border p-1 text-[10px] flex flex-col leading-tight shadow-sm transition-all hover:brightness-95 cursor-pointer overflow-hidden", getTypeColor(apt.type, apt.status))}>
+                                      <div className="font-semibold flex justify-between gap-1 border-b border-black/5 pb-0.5 mb-0.5">
                                         <span className="truncate">{getTypeLabel(apt.type)}</span>
-                                        <span>{apt.time.slice(0, 5)}</span>
+                                        <span className="shrink-0">{apt.time.slice(0, 5)}</span>
                                       </div>
                                       <div className="truncate font-medium opacity-90">
                                          {getPatientName(apt.patientId)}
                                       </div>
                                     </div>
                                  </div>
-                             );
-                         })}
+                               );
+                             });
+                           });
+                         })()}
                          
                          {isToday(day) && (
                             <div 

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, MoreHorizontal, Loader2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { usePatients, useUpdatePatient, type Patient } from "@/hooks/usePatients";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -39,18 +39,30 @@ import {
 } from "@/components/ui/tabs";
 import { PatientHistory } from "@/components/patients/PatientHistory";
 
+const ITEMS_PER_PAGE = 10;
+
 export default function Patients() {
   const { data: patients, isLoading } = usePatients();
   const updatePatient = useUpdatePatient();
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredPatients = (patients || []).filter(
     (p) =>
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.cpf.includes(search)
   );
+
+  const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedPatients = filteredPatients.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
 
   const handleEdit = (patient: Patient) => {
     setEditingPatient(patient);
@@ -133,7 +145,7 @@ export default function Patients() {
               placeholder="Buscar por nome ou CPF..."
               className="pl-9 border-none bg-muted/50 focus-visible:ring-0"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearch(e.target.value)}
               data-testid="input-search-patients"
             />
           </div>
@@ -145,77 +157,112 @@ export default function Patients() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>CPF</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Plano (Fim)</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPatients.length === 0 ? (
+            <>
+              <Table>
+                <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      Nenhum paciente encontrado.
-                    </TableCell>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>CPF</TableHead>
+                    <TableHead>Telefone</TableHead>
+                    <TableHead>Plano (Fim)</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                ) : (
-                  filteredPatients.map((patient) => (
-                    <TableRow key={patient.id} className="group hover:bg-muted/30 transition-colors" data-testid={`row-patient-${patient.id}`}>
-                      <TableCell className="font-medium">
-                        <div className="flex flex-col">
-                          <span>{patient.name}</span>
-                          <span className="text-xs text-muted-foreground">{patient.email || "-"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{patient.cpf}</TableCell>
-                      <TableCell>{patient.phone}</TableCell>
-                      <TableCell>
-                        {patient.planEndDate 
-                          ? format(parseISO(patient.planEndDate), "dd/MM/yyyy", { locale: ptBR })
-                          : "-"
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={patient.status === "active" ? "default" : "destructive"}
-                          className={
-                            patient.status === "active"
-                              ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-emerald-200"
-                              : "bg-red-500/15 text-red-700 hover:bg-red-500/25 border-red-200"
-                          }
-                        >
-                          {patient.status === "active" ? "Ativo" : "Inativo"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`button-actions-${patient.id}`}>
-                              <span className="sr-only">Abrir menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleEdit(patient)} data-testid={`button-edit-${patient.id}`}>
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toggleStatus(patient)} data-testid={`button-toggle-${patient.id}`}>
-                              {patient.status === "active" ? "Desativar" : "Ativar"}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                </TableHeader>
+                <TableBody>
+                  {paginatedPatients.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        Nenhum paciente encontrado.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    paginatedPatients.map((patient) => (
+                      <TableRow key={patient.id} className="group hover:bg-muted/30 transition-colors" data-testid={`row-patient-${patient.id}`}>
+                        <TableCell className="font-medium">
+                          <div className="flex flex-col">
+                            <span>{patient.name}</span>
+                            <span className="text-xs text-muted-foreground">{patient.email || "-"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{patient.cpf}</TableCell>
+                        <TableCell>{patient.phone}</TableCell>
+                        <TableCell>
+                          {patient.planEndDate 
+                            ? format(parseISO(patient.planEndDate), "dd/MM/yyyy", { locale: ptBR })
+                            : "-"
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={patient.status === "active" ? "default" : "destructive"}
+                            className={
+                              patient.status === "active"
+                                ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-emerald-200"
+                                : "bg-red-500/15 text-red-700 hover:bg-red-500/25 border-red-200"
+                            }
+                          >
+                            {patient.status === "active" ? "Ativo" : "Inativo"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`button-actions-${patient.id}`}>
+                                <span className="sr-only">Abrir menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleEdit(patient)} data-testid={`button-edit-${patient.id}`}>
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => toggleStatus(patient)} data-testid={`button-toggle-${patient.id}`}>
+                                {patient.status === "active" ? "Desativar" : "Ativar"}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+              
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-4 border-t bg-muted/10">
+                  <div className="text-sm text-muted-foreground">
+                    Mostrando {startIndex + 1} a {Math.min(startIndex + ITEMS_PER_PAGE, filteredPatients.length)} de {filteredPatients.length} pacientes
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      data-testid="button-prev-page"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Anterior
+                    </Button>
+                    <div className="text-sm font-medium">
+                      Página {currentPage} de {totalPages}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      data-testid="button-next-page"
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

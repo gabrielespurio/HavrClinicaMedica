@@ -312,25 +312,35 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Horário fora da escala do profissional" });
       }
 
-      // Validate time conflicts
+      // Validate time conflicts considering duration
       const allAppointments = await storage.getAllAppointments();
       const sameDayAppointments = allAppointments.filter((a: any) => a.date === result.data.date && a.status !== "cancelled");
+      const allAppointmentTypes = await storage.getAllAppointmentTypes();
 
-      const isMedicalType = (t: string) => ["consulta", "retorno", "Consulta", "Retorno"].includes(t);
-      const isNursingType = (t: string) => ["aplicacao", "tirzepatida", "Aplicação", "Aplicação Tirzepatida"].includes(t);
+      const isMedicalType = (t: string) => ["consulta", "retorno", "Consulta", "Retorno"].includes(t.toLowerCase());
+      const isNursingType = (t: string) => ["aplicacao", "tirzepatida", "aplicação", "aplicação tirzepatida"].includes(t.toLowerCase());
+
+      const getTypeDuration = (typeSlug: string): number => {
+        const typeConfig = allAppointmentTypes.find(t => t.slug.toLowerCase() === typeSlug.toLowerCase() || t.name.toLowerCase() === typeSlug.toLowerCase());
+        return typeConfig?.durationMinutes || 30;
+      };
+
+      const newStartMinutes = parseTime(result.data.time);
+      const newDuration = getTypeDuration(result.data.type);
+      const newEndMinutes = newStartMinutes + newDuration;
 
       const hasConflict = sameDayAppointments.some((a: any) => {
-        // Normalize time comparison (remove seconds if present)
-        const aptTime = a.time.slice(0, 5);
-        const newTime = result.data.time.slice(0, 5);
-        if (aptTime !== newTime) return false;
+        const existingStartMinutes = parseTime(a.time.slice(0, 5));
+        const existingDuration = getTypeDuration(a.type);
+        const existingEndMinutes = existingStartMinutes + existingDuration;
 
-        // Medical types conflict with each other
+        const overlaps = newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes;
+        if (!overlaps) return false;
+
         if (isMedicalType(result.data.type)) {
           return isMedicalType(a.type);
         }
 
-        // Nursing types conflict with each other
         if (isNursingType(result.data.type)) {
           return isNursingType(a.type);
         }
@@ -339,8 +349,9 @@ export async function registerRoutes(
       });
 
       if (hasConflict) {
+        const formatMinutes = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
         return res.status(409).json({
-          message: `Já existe um agendamento de ${isMedicalType(result.data.type) ? "médico" : "enfermagem"} marcado para este horário (${result.data.time}).`
+          message: `Conflito de horário: O agendamento de ${result.data.time} até ${formatMinutes(newEndMinutes)} (${newDuration} min) sobrepõe outro agendamento existente.`
         });
       }
 
@@ -807,25 +818,41 @@ export async function registerRoutes(
         }
       }
 
-      // 7. Verificar conflitos de horário (já implementado anteriormente)
+      // 7. Verificar conflitos de horário considerando duração
       const allAppointments = await storage.getAllAppointments();
       const sameDayAppointments = allAppointments.filter((a: any) => a.date === data && a.status !== "cancelled");
+      const allAppointmentTypes = await storage.getAllAppointmentTypes();
 
-      const isMedicalType = (t: string) => ["consulta", "retorno", "Consulta", "Retorno"].includes(t);
-      const isNursingType = (t: string) => ["aplicacao", "tirzepatida", "Aplicação", "Aplicação Tirzepatida"].includes(t);
+      const isMedicalType = (t: string) => ["consulta", "retorno"].includes(t.toLowerCase());
+      const isNursingType = (t: string) => ["aplicacao", "tirzepatida", "aplicação", "aplicação tirzepatida"].includes(t.toLowerCase());
+
+      const parseTimePublic = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        return h * 60 + (m || 0);
+      };
+
+      const getTypeDuration = (typeSlug: string): number => {
+        const typeConfig = allAppointmentTypes.find(t => t.slug.toLowerCase() === typeSlug.toLowerCase() || t.name.toLowerCase() === typeSlug.toLowerCase());
+        return typeConfig?.durationMinutes || 30;
+      };
+
+      const newStartMinutes = parseTimePublic(hora);
+      const newDuration = getTypeDuration(dbTypeName);
+      const newEndMinutes = newStartMinutes + newDuration;
 
       const hasConflict = sameDayAppointments.some((a: any) => {
-        if (a.time !== `${hora}:00` && a.time !== hora) return false;
+        const existingStartMinutes = parseTimePublic(a.time.slice(0, 5));
+        const existingDuration = getTypeDuration(a.type);
+        const existingEndMinutes = existingStartMinutes + existingDuration;
 
-        // Se o novo é médico (consulta/retorno)
+        const overlaps = newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes;
+        if (!overlaps) return false;
+
         if (isMedicalType(dbTypeName)) {
-          // Conflita se já existe um médico no mesmo horário
           return isMedicalType(a.type);
         }
 
-        // Se o novo é enfermagem (aplicação/tirzepatida)
         if (isNursingType(dbTypeName)) {
-          // Conflita se já existe um enfermagem no mesmo horário
           return isNursingType(a.type);
         }
 
@@ -833,9 +860,10 @@ export async function registerRoutes(
       });
 
       if (hasConflict) {
+        const formatMinutes = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
         return res.status(409).json({
           success: false,
-          message: `Já existe um agendamento de ${isMedicalType(dbTypeName) ? "médico" : "enfermagem"} marcado para este horário (${hora}).`
+          message: `Conflito de horário: O agendamento de ${hora} até ${formatMinutes(newEndMinutes)} (${newDuration} min) sobrepõe outro agendamento existente.`
         });
       }
 

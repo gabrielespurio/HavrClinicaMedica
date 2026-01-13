@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAppointmentSchema, insertProfessionalSchema, insertAppointmentTypeSchema, insertServiceScheduleSchema, insertUserSchema, updateUserSchema } from "@shared/schema";
 import passport from "passport";
-import { requireAuth } from "./auth";
+import { requireAuth, requireAdmin } from "./auth";
 import { getAvailableSlots, getAppointmentsByPerson } from "./services/agendaService";
 import { validatePatient } from "./services/patientService";
 
@@ -76,8 +76,8 @@ export async function registerRoutes(
     res.json(userWithoutPassword);
   });
 
-  // User management routes
-  app.get("/api/users", requireAuth, async (req, res, next) => {
+  // User management routes (admin only)
+  app.get("/api/users", requireAdmin, async (req, res, next) => {
     try {
       const allUsers = await storage.getAllUsers();
       const usersWithoutAdmin = allUsers
@@ -89,7 +89,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/users", requireAuth, async (req, res, next) => {
+  app.post("/api/users", requireAdmin, async (req, res, next) => {
     try {
       const result = insertUserSchema.safeParse(req.body);
       if (!result.success) {
@@ -116,7 +116,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/users/:id", requireAuth, async (req, res, next) => {
+  app.patch("/api/users/:id", requireAdmin, async (req, res, next) => {
     try {
       const result = updateUserSchema.safeParse(req.body);
       if (!result.success) {
@@ -142,7 +142,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/users/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/users/:id", requireAdmin, async (req, res, next) => {
     try {
       const user = await storage.getUser(req.params.id);
       if (!user) {
@@ -396,7 +396,7 @@ export async function registerRoutes(
     }
   });
 
-  // Professional routes
+  // Professional routes (admin only for write operations)
   app.get("/api/professionals", requireAuth, async (req, res, next) => {
     try {
       const professionals = await storage.getAllProfessionals();
@@ -418,7 +418,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/professionals", requireAuth, async (req, res, next) => {
+  app.post("/api/professionals", requireAdmin, async (req, res, next) => {
     try {
       const result = insertProfessionalSchema.safeParse(req.body);
       if (!result.success) {
@@ -432,7 +432,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/professionals/:id", requireAuth, async (req, res, next) => {
+  app.patch("/api/professionals/:id", requireAdmin, async (req, res, next) => {
     try {
       const result = insertProfessionalSchema.partial().safeParse(req.body);
       if (!result.success) {
@@ -449,7 +449,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/professionals/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/professionals/:id", requireAdmin, async (req, res, next) => {
     try {
       const success = await storage.deleteProfessional(req.params.id);
       if (!success) {
@@ -483,7 +483,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/appointment-types", requireAuth, async (req, res, next) => {
+  app.post("/api/appointment-types", requireAdmin, async (req, res, next) => {
     try {
       const result = insertAppointmentTypeSchema.safeParse(req.body);
       if (!result.success) {
@@ -505,7 +505,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/appointment-types/:id", requireAuth, async (req, res, next) => {
+  app.patch("/api/appointment-types/:id", requireAdmin, async (req, res, next) => {
     try {
       const result = insertAppointmentTypeSchema.partial().safeParse(req.body);
       if (!result.success) {
@@ -530,7 +530,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/appointment-types/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/appointment-types/:id", requireAdmin, async (req, res, next) => {
     try {
       const success = await storage.deleteAppointmentType(req.params.id);
       if (!success) {
@@ -558,7 +558,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/schedules", requireAuth, async (req, res, next) => {
+  app.post("/api/schedules", requireAdmin, async (req, res, next) => {
     try {
       const result = insertServiceScheduleSchema.safeParse(req.body);
       if (!result.success) {
@@ -584,7 +584,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/schedules/:id", requireAuth, async (req, res, next) => {
+  app.patch("/api/schedules/:id", requireAdmin, async (req, res, next) => {
     try {
       const result = insertServiceScheduleSchema.partial().safeParse(req.body);
       if (!result.success) {
@@ -622,7 +622,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/schedules/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/schedules/:id", requireAdmin, async (req, res, next) => {
     try {
       const success = await storage.deleteServiceSchedule(req.params.id);
       if (!success) {

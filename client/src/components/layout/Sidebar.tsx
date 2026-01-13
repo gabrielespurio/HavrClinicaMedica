@@ -5,10 +5,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
-  { name: "Agenda", href: "/", icon: Calendar },
-  { name: "Pacientes", href: "/patients", icon: Users },
-  { name: "Configurações", href: "/settings", icon: Settings },
-  { name: "Usuários", href: "/users", icon: UserCog },
+  { name: "Agenda", href: "/", icon: Calendar, roles: ["admin", "secretaria"] },
+  { name: "Pacientes", href: "/patients", icon: Users, roles: ["admin", "secretaria"] },
+  { name: "Configurações", href: "/settings", icon: Settings, roles: ["admin"] },
+  { name: "Usuários", href: "/users", icon: UserCog, roles: ["admin"] },
 ];
 
 export function Sidebar() {
@@ -34,7 +34,9 @@ export function Sidebar() {
       </div>
       <div className="flex-1 overflow-y-auto py-6 px-3">
         <nav className="space-y-1">
-          {navigation.map((item) => {
+          {navigation
+            .filter((item) => item.roles.includes(user?.role || ""))
+            .map((item) => {
             const isActive = location === item.href;
             return (
               <Link key={item.name} href={item.href}>

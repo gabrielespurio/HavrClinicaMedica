@@ -86,3 +86,14 @@ export function requireAuth(req: any, res: any, next: any) {
   }
   res.status(401).json({ message: "Não autorizado" });
 }
+
+export function requireAdmin(req: any, res: any, next: any) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Não autorizado" });
+  }
+  const user = req.user as any;
+  if (user.role !== "admin") {
+    return res.status(403).json({ message: "Acesso negado. Apenas administradores podem acessar este recurso." });
+  }
+  return next();
+}

@@ -11,7 +11,7 @@ import Users from "@/pages/Users";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({ component: Component, allowedRoles }: { component: React.ComponentType; allowedRoles?: string[] }) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -24,6 +24,10 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
   if (!user) {
     return <Redirect to="/login" />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Redirect to="/" />;
   }
 
   return <Component />;
@@ -44,10 +48,10 @@ function Router() {
         <ProtectedRoute component={Patients} />
       </Route>
       <Route path="/users">
-        <ProtectedRoute component={Users} />
+        <ProtectedRoute component={Users} allowedRoles={["admin"]} />
       </Route>
       <Route path="/settings">
-        <ProtectedRoute component={Settings} />
+        <ProtectedRoute component={Settings} allowedRoles={["admin"]} />
       </Route>
       <Route component={NotFound} />
     </Switch>

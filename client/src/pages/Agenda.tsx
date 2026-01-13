@@ -41,6 +41,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AppointmentForm } from "@/components/agenda/AppointmentForm";
 
 type ViewMode = "month" | "week" | "day";
@@ -316,41 +321,54 @@ export default function Agenda() {
                         const cardTop = topOffset + (index * cardHeight);
 
                         return (
-                          <div
-                            key={apt.id}
-                            className="absolute left-0 right-0 px-0.5 z-10"
-                            style={{ 
-                              top: `${cardTop}rem`, 
-                              height: `${cardHeight}rem`,
-                            }}
-                            onClick={(e) => handleAppointmentClick(e, apt)}
-                          >
-                            <div 
-                              className={cn(
-                                "h-full w-full rounded border-l-3 px-2 py-1 text-xs flex items-center gap-2 cursor-pointer transition-all hover:shadow-md overflow-hidden",
-                                styles.bg, styles.border
-                              )}
-                            >
-                              <div className={cn("h-4 w-4 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-bold text-white", styles.dot)}>
-                                {firstName.charAt(0).toUpperCase()}
+                          <Tooltip key={apt.id}>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="absolute left-0 right-0 px-0.5 z-10"
+                                style={{ 
+                                  top: `${cardTop}rem`, 
+                                  height: `${cardHeight}rem`,
+                                }}
+                                onClick={(e) => handleAppointmentClick(e, apt)}
+                              >
+                                <div 
+                                  className={cn(
+                                    "h-full w-full rounded border-l-3 px-2 py-1 text-xs flex items-center gap-2 cursor-pointer transition-all hover:shadow-md overflow-hidden",
+                                    styles.bg, styles.border
+                                  )}
+                                >
+                                  <div className={cn("h-4 w-4 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-bold text-white", styles.dot)}>
+                                    {firstName.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className={cn("font-medium truncate text-[11px]", styles.text)}>
+                                    {firstName}
+                                  </span>
+                                  <span className="text-muted-foreground text-[10px]">·</span>
+                                  <span className={cn("text-[10px] truncate", styles.text)}>
+                                    {getTypeLabel(apt.type)}
+                                  </span>
+                                  <span className={cn("text-[11px] font-bold ml-auto flex-shrink-0", styles.text)}>
+                                    {apt.time.slice(0, 5)}
+                                  </span>
+                                  {apt.status !== "scheduled" && (
+                                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 flex-shrink-0">
+                                      {getStatusLabel(apt.status)}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
-                              <span className={cn("font-medium truncate text-[11px]", styles.text)}>
-                                {firstName}
-                              </span>
-                              <span className="text-muted-foreground text-[10px]">·</span>
-                              <span className={cn("text-[10px] truncate", styles.text)}>
-                                {getTypeLabel(apt.type)}
-                              </span>
-                              <span className={cn("text-[11px] font-bold ml-auto flex-shrink-0", styles.text)}>
-                                {apt.time.slice(0, 5)}
-                              </span>
-                              {apt.status !== "scheduled" && (
-                                <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 flex-shrink-0">
-                                  {getStatusLabel(apt.status)}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs">
+                              <div className="space-y-1 text-sm">
+                                <p className="font-semibold">{patientName}</p>
+                                <p><span className="text-muted-foreground">Tipo:</span> {getTypeLabel(apt.type)}</p>
+                                <p><span className="text-muted-foreground">Horário:</span> {apt.time.slice(0, 5)}</p>
+                                <p><span className="text-muted-foreground">Profissional:</span> {apt.professional}</p>
+                                <p><span className="text-muted-foreground">Status:</span> {getStatusLabel(apt.status)}</p>
+                                {apt.notes && <p><span className="text-muted-foreground">Obs:</span> {apt.notes}</p>}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
                         );
                       });
                     });

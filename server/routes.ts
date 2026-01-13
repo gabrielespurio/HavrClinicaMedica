@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAppointmentSchema, insertProfessionalSchema, insertAppointmentTypeSchema, insertServiceScheduleSchema, insertUserSchema } from "@shared/schema";
+import { insertPatientSchema, insertAppointmentSchema, insertProfessionalSchema, insertAppointmentTypeSchema, insertServiceScheduleSchema, insertUserSchema, updateUserSchema } from "@shared/schema";
 import passport from "passport";
 import { requireAuth } from "./auth";
 import { getAvailableSlots, getAppointmentsByPerson } from "./services/agendaService";
@@ -118,7 +118,7 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id", requireAuth, async (req, res, next) => {
     try {
-      const result = insertUserSchema.partial().safeParse(req.body);
+      const result = updateUserSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
       }

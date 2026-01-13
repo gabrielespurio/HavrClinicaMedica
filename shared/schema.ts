@@ -15,8 +15,19 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
+export const userRoleEnum = z.enum(["admin", "secretaria"]);
+export type UserRole = z.infer<typeof userRoleEnum>;
+
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+  role: userRoleEnum,
+});
+export const updateUserSchema = insertUserSchema.partial().extend({
+  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").optional(),
+  role: userRoleEnum.optional(),
+});
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type User = typeof users.$inferSelect;
 
 export const professionals = pgTable("professionals", {

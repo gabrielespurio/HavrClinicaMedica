@@ -347,7 +347,7 @@ export default function Agenda() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className={cn("font-semibold truncate text-[11px]", styles.text)}>
-                                    {patientName}
+                                    {patientName.split(' ')[0]}
                                   </p>
                                   {apt.status !== "scheduled" && (
                                     <p className="text-[9px] text-muted-foreground">

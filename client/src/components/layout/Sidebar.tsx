@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 const navigation = [
   { name: "Agenda", href: "/", icon: Calendar },
   { name: "Pacientes", href: "/patients", icon: Users },
-  { name: "Usuários", href: "/users", icon: UserCog },
   { name: "Configurações", href: "/settings", icon: Settings },
+  { name: "Usuários", href: "/users", icon: UserCog },
 ];
 
 export function Sidebar() {

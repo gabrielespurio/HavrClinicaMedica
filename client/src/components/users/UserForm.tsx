@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,6 +56,17 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
 
   const isEditing = !!user;
   const isPending = createUser.isPending || updateUser.isPending;
+
+  useEffect(() => {
+    form.reset({
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+      username: user?.username || "",
+      password: "",
+      role: (user?.role as "admin" | "secretaria") || "secretaria",
+    });
+  }, [user, form]);
 
   const onSubmit = async (values: UserFormValues) => {
     try {

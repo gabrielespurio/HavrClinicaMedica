@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAppointmentSchema, insertProfessionalSchema, insertAppointmentTypeSchema, insertServiceScheduleSchema } from "@shared/schema";
+import { insertPatientSchema, insertAppointmentSchema, insertProfessionalSchema, insertAppointmentTypeSchema, insertServiceScheduleSchema, insertUserSchema } from "@shared/schema";
 import passport from "passport";
 import { requireAuth } from "./auth";
 import { getAvailableSlots, getAppointmentsByPerson } from "./services/agendaService";
@@ -74,6 +74,93 @@ export async function registerRoutes(
     const user = req.user as any;
     const { password, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
+  });
+
+  // User management routes
+  app.get("/api/users", requireAuth, async (req, res, next) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const usersWithoutAdmin = allUsers
+        .filter(u => u.username !== "admin")
+        .map(({ password, ...rest }) => rest);
+      res.json(usersWithoutAdmin);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/users", requireAuth, async (req, res, next) => {
+    try {
+      const result = insertUserSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
+      }
+
+      const existingUser = await storage.getUserByUsername(result.data.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Login já existe" });
+      }
+
+      const bcrypt = await import("bcryptjs");
+      const hashedPassword = await bcrypt.hash(result.data.password, 10);
+
+      const user = await storage.createUser({
+        ...result.data,
+        password: hashedPassword,
+      });
+
+      const { password, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/users/:id", requireAuth, async (req, res, next) => {
+    try {
+      const result = insertUserSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: result.error.issues });
+      }
+
+      let updateData = { ...result.data };
+
+      if (updateData.password) {
+        const bcrypt = await import("bcryptjs");
+        updateData.password = await bcrypt.hash(updateData.password, 10);
+      }
+
+      const user = await storage.updateUser(req.params.id, updateData);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/users/:id", requireAuth, async (req, res, next) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      if (user.username === "admin") {
+        return res.status(403).json({ message: "Não é permitido excluir o usuário admin" });
+      }
+
+      const success = await storage.deleteUser(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      res.json({ message: "Usuário removido com sucesso" });
+    } catch (error) {
+      next(error);
+    }
   });
 
   // Patient routes

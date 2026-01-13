@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import NotFound from "@/pages/not-found";
 import Agenda from "@/pages/Agenda";
 import Patients from "@/pages/Patients";
+import Users from "@/pages/Users";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 
@@ -41,6 +42,9 @@ function Router() {
       </Route>
       <Route path="/patients">
         <ProtectedRoute component={Patients} />
+      </Route>
+      <Route path="/users">
+        <ProtectedRoute component={Users} />
       </Route>
       <Route path="/settings">
         <ProtectedRoute component={Settings} />

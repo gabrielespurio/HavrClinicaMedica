@@ -1,12 +1,13 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Users, Calendar, Settings, Activity, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, Settings, Activity, LogOut, UserCog } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
   { name: "Agenda", href: "/", icon: Calendar },
   { name: "Pacientes", href: "/patients", icon: Users },
+  { name: "Usuários", href: "/users", icon: UserCog },
   { name: "Configurações", href: "/settings", icon: Settings },
 ];
 

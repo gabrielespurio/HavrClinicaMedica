@@ -18,15 +18,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { usePatients } from "@/hooks/usePatients";
 import { useCreateAppointment, useUpdateAppointment, type Appointment } from "@/hooks/useAppointments";
 import { useAppointmentTypes, useProfessionals } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
 import { format, isBefore, getDay } from "date-fns";
-import { useEffect, useMemo } from "react";
-import { Loader2, Clock, AlertCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Clock, AlertCircle, Check, ChevronsUpDown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 const appointmentSchema = z.object({
   patientId: z.string().min(1, "Selecione um paciente"),
@@ -94,6 +108,7 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   const createAppointment = useCreateAppointment();
   const updateAppointment = useUpdateAppointment();
   const { toast } = useToast();
+  const [patientPopoverOpen, setPatientPopoverOpen] = useState(false);
 
   const activePatients = (patients || []).filter((p) => p.status === "active");
   const activeTypes = (appointmentTypes || []).filter((t) => t.isActive);
@@ -279,28 +294,62 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
           control={form.control}
           name="patientId"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="flex flex-col">
               <FormLabel>Paciente</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isReadOnly}>
-                <FormControl>
-                  <SelectTrigger data-testid="select-patient">
-                    <SelectValue placeholder="Selecione um paciente ativo" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {activePatients.length === 0 ? (
-                    <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                      Nenhum paciente ativo encontrado
-                    </div>
-                  ) : (
-                    activePatients.map((p) => (
-                      <SelectItem key={p.id} value={p.id} data-testid={`option-patient-${p.id}`}>
-                        {p.name} (CPF: {p.cpf})
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <Popover open={patientPopoverOpen} onOpenChange={setPatientPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={patientPopoverOpen}
+                      className={cn(
+                        "w-full justify-between font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                      disabled={isReadOnly}
+                      data-testid="select-patient"
+                    >
+                      {field.value
+                        ? activePatients.find((p) => p.id === field.value)?.name || "Selecione um paciente"
+                        : "Buscar paciente..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Digite o nome ou CPF do paciente..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {activePatients.map((p) => (
+                          <CommandItem
+                            key={p.id}
+                            value={`${p.name} ${p.cpf}`}
+                            onSelect={() => {
+                              field.onChange(p.id);
+                              setPatientPopoverOpen(false);
+                            }}
+                            data-testid={`option-patient-${p.id}`}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                field.value === p.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium">{p.name}</span>
+                              <span className="text-xs text-muted-foreground">CPF: {p.cpf}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               {!isReadOnly && <FormDescription>Apenas pacientes ativos são listados.</FormDescription>}
               <FormMessage />
             </FormItem>

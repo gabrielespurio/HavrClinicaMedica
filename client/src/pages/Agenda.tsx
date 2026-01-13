@@ -170,17 +170,20 @@ export default function Agenda() {
                 {format(day, "d")}
               </div>
               <div className="mt-2 space-y-1">
-                {dayAppointments.slice(0, 3).map((apt) => (
+                {dayAppointments.slice(0, 2).map((apt) => (
                   <div key={apt.id} onClick={(e) => handleAppointmentClick(e, apt)}>
-                    <div className={cn("text-[10px] px-1.5 py-0.5 rounded truncate border", getTypeColor(apt.type, apt.status))}>
-                      <span className="font-medium mr-1">{apt.time.slice(0, 5)}</span>
-                      {getTypeLabel(apt.type)}
+                    <div className={cn("text-[10px] px-1.5 py-1 rounded border", getTypeColor(apt.type, apt.status))}>
+                      <div className="flex items-center gap-1 font-semibold">
+                        <span>{apt.time.slice(0, 5)}</span>
+                        <span className="text-[9px] opacity-80">- {getTypeLabel(apt.type)}</span>
+                      </div>
+                      <div className="truncate opacity-90">{getPatientName(apt.patientId)}</div>
                     </div>
                   </div>
                 ))}
-                {dayAppointments.length > 3 && (
+                {dayAppointments.length > 2 && (
                   <div className="text-xs text-muted-foreground pl-1">
-                    + {dayAppointments.length - 3} mais
+                    + {dayAppointments.length - 2} mais
                   </div>
                 )}
               </div>

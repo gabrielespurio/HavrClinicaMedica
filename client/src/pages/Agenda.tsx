@@ -307,55 +307,48 @@ export default function Agenda() {
                       if (hour < 9 || hour > 17) return null;
                       
                       const count = appointmentsAtTime.length;
+                      const cardHeight = 1.8;
                       
                       return appointmentsAtTime.map((apt, index) => {
-                        const width = 100 / count;
-                        const left = index * width;
                         const styles = getTypeStyles(apt.type, apt.status);
                         const patientName = getPatientName(apt.patientId);
+                        const firstName = patientName.split(' ')[0];
+                        const cardTop = topOffset + (index * cardHeight);
 
                         return (
                           <div
                             key={apt.id}
-                            className="absolute px-0.5 z-10"
+                            className="absolute left-0 right-0 px-0.5 z-10"
                             style={{ 
-                              top: `${topOffset}rem`, 
-                              height: `${height}rem`,
-                              left: `${left}%`,
-                              width: `${width}%`
+                              top: `${cardTop}rem`, 
+                              height: `${cardHeight}rem`,
                             }}
                             onClick={(e) => handleAppointmentClick(e, apt)}
                           >
                             <div 
                               className={cn(
-                                "h-full w-full rounded-lg border-l-4 p-2 text-xs flex flex-col cursor-pointer transition-all hover:shadow-md overflow-hidden",
+                                "h-full w-full rounded border-l-3 px-2 py-1 text-xs flex items-center gap-2 cursor-pointer transition-all hover:shadow-md overflow-hidden",
                                 styles.bg, styles.border
                               )}
-                              style={{ borderLeftColor: styles.dot.replace('bg-', 'var(--') }}
                             >
-                              <div className="flex items-center justify-between gap-1 mb-1">
-                                <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-4", styles.text, styles.bg)}>
-                                  {getTypeLabel(apt.type)}
+                              <div className={cn("h-4 w-4 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-bold text-white", styles.dot)}>
+                                {firstName.charAt(0).toUpperCase()}
+                              </div>
+                              <span className={cn("font-medium truncate text-[11px]", styles.text)}>
+                                {firstName}
+                              </span>
+                              <span className="text-muted-foreground text-[10px]">·</span>
+                              <span className={cn("text-[10px] truncate", styles.text)}>
+                                {getTypeLabel(apt.type)}
+                              </span>
+                              <span className={cn("text-[11px] font-bold ml-auto flex-shrink-0", styles.text)}>
+                                {apt.time.slice(0, 5)}
+                              </span>
+                              {apt.status !== "scheduled" && (
+                                <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 flex-shrink-0">
+                                  {getStatusLabel(apt.status)}
                                 </Badge>
-                                <span className={cn("text-[11px] font-bold", styles.text)}>
-                                  {apt.time.slice(0, 5)}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1.5 mt-auto">
-                                <div className={cn("h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white", styles.dot)}>
-                                  {patientName.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className={cn("font-semibold truncate text-[11px]", styles.text)}>
-                                    {patientName.split(' ')[0]}
-                                  </p>
-                                  {apt.status !== "scheduled" && (
-                                    <p className="text-[9px] text-muted-foreground">
-                                      {getStatusLabel(apt.status)}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
+                              )}
                             </div>
                           </div>
                         );

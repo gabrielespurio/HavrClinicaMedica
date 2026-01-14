@@ -155,9 +155,10 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   const businessHours = selectedDate ? getBusinessHoursForDate(selectedDate) : "";
   
   const isScheduleInactive = useMemo(() => {
-    if (!selectedDate || !form.getValues("professional") || !schedules || !professionals) return false;
+    const currentProfessional = form.getValues("professional");
+    if (!selectedDate || !currentProfessional || !schedules || !professionals) return false;
     
-    const prof = professionals.find(p => p.name === form.getValues("professional"));
+    const prof = professionals.find(p => p.name === currentProfessional);
     if (!prof) return false;
     
     const date = parseISO(selectedDate);
@@ -165,7 +166,7 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
     
     const daySchedule = schedules.find(s => s.professionalId === prof.id && s.weekday === weekday);
     return daySchedule ? !daySchedule.isActive : false;
-  }, [selectedDate, form.watch("professional"), schedules, professionals]);
+  }, [selectedDate, selectedType, schedules, professionals]);
 
   const validation = selectedDate && selectedTime ? validateBusinessHours(selectedDate, selectedTime) : { valid: true, message: "" };
 
@@ -208,17 +209,19 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
 
   // Update professional when type changes
   useEffect(() => {
-    if (appointment) return;
+    if (appointment || isLoadingTypes || activeTypes.length === 0) return;
     const selectedTypeConfig = activeTypes.find(t => t.slug === selectedType);
     if (selectedTypeConfig) {
       const profName = selectedTypeConfig.defaultProfessionalId
         ? professionalMap.get(selectedTypeConfig.defaultProfessionalId)
         : activeProfessionals[0]?.name;
-      if (profName) {
-        form.setValue("professional", profName);
+      
+      const currentProfessional = form.getValues("professional");
+      if (profName && profName !== currentProfessional) {
+        form.setValue("professional", profName, { shouldValidate: true });
       }
     }
-  }, [selectedType, form, appointment, activeTypes, professionalMap, activeProfessionals]);
+  }, [selectedType, appointment, activeTypes, professionalMap, activeProfessionals]);
 
   const onSubmit = async (data: AppointmentFormValues) => {
     const hourValidation = validateBusinessHours(data.date, data.time);

@@ -29,6 +29,7 @@ import {
   isSameMonth,
   isToday,
   setHours,
+  getDay,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAppointments, type Appointment } from "@/hooks/useAppointments";

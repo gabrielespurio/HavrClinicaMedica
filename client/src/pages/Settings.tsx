@@ -156,10 +156,17 @@ export default function Settings() {
     }
   };
 
-  const handleUpdateSchedule = async (schedule: ServiceSchedule, startTime: string, endTime: string) => {
+  const handleUpdateSchedule = async (schedule: ServiceSchedule, startTime: string, endTime: string, isActive?: boolean) => {
     try {
-      await updateSchedule.mutateAsync({ id: schedule.id, data: { startTime, endTime } });
-      toast({ title: "Horário atualizado!" });
+      await updateSchedule.mutateAsync({ 
+        id: schedule.id, 
+        data: { 
+          startTime, 
+          endTime,
+          isActive: isActive !== undefined ? isActive : schedule.isActive
+        } 
+      });
+      toast({ title: isActive !== undefined ? (isActive ? "Escala ativada!" : "Escala inativada!") : "Horário atualizado!" });
     } catch (error: any) {
       toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
     }
@@ -400,9 +407,17 @@ export default function Settings() {
                               />
                             </TableCell>
                             <TableCell>
-                              <Badge variant={schedule.isActive ? "default" : "secondary"}>
-                                {schedule.isActive ? "Ativo" : "Inativo"}
-                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="p-0 hover:bg-transparent"
+                                onClick={() => handleUpdateSchedule(schedule, schedule.startTime, schedule.endTime, !schedule.isActive)}
+                                data-testid={`button-toggle-schedule-${schedule.id}`}
+                              >
+                                <Badge variant={schedule.isActive ? "default" : "secondary"} className="cursor-pointer">
+                                  {schedule.isActive ? "Ativo" : "Inativo"}
+                                </Badge>
+                              </Button>
                             </TableCell>
                           </TableRow>
                         );

@@ -33,6 +33,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { useAppointments, type Appointment } from "@/hooks/useAppointments";
 import { usePatients } from "@/hooks/usePatients";
+import { useProfessionals, useServiceSchedules } from "@/hooks/useSettings";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -41,6 +42,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
@@ -59,6 +67,10 @@ export default function Agenda() {
 
   const { data: appointments, isLoading } = useAppointments();
   const { data: patients } = usePatients();
+  const { data: professionals } = useProfessionals();
+  const { data: schedules } = useServiceSchedules();
+  
+  const [selectedProfessional, setSelectedProfessional] = useState<string>("all");
 
   const handlePrevious = () => {
     if (viewMode === "week") setViewDate(subWeeks(viewDate, 1));
@@ -89,7 +101,12 @@ export default function Agenda() {
 
   const getAppointmentsForDate = (date: Date) => {
     return (appointments || []).filter(
-      (apt) => isSameDay(parseISO(apt.date), date) && apt.status !== "cancelled"
+      (apt) => {
+        const sameDay = isSameDay(parseISO(apt.date), date);
+        const notCancelled = apt.status !== "cancelled";
+        const matchesProfessional = selectedProfessional === "all" || apt.professional === selectedProfessional;
+        return sameDay && notCancelled && matchesProfessional;
+      }
     );
   };
 
@@ -280,18 +297,33 @@ export default function Agenda() {
 
             {days.map((day) => {
               const dayAppointments = getAppointmentsForDate(day);
+              const isBlocked = selectedProfessional !== "all" && schedules && professionals && (() => {
+                const prof = professionals.find(p => p.name === selectedProfessional);
+                if (!prof) return false;
+                const weekday = getDay(day);
+                const daySchedule = schedules.find(s => s.professionalId === prof.id && s.weekday === weekday);
+                return daySchedule ? !daySchedule.isActive : false;
+              })();
+
               return (
-                <div key={day.toString()} className="border-r last:border-r-0 relative">
+                <div key={day.toString()} className={cn("border-r last:border-r-0 relative", isBlocked && "bg-red-50/30 dark:bg-red-950/10")}>
                   {hours.map((hour, i) => (
                     <div 
                       key={hour} 
                       className={cn(
                         "h-24 border-b border-muted/40 hover:bg-accent/20 cursor-pointer transition-colors",
-                        i % 2 === 0 && "bg-muted/5"
+                        i % 2 === 0 && "bg-muted/5",
+                        isBlocked && "cursor-not-allowed hover:bg-transparent"
                       )}
-                      onClick={() => handleSlotClick(setHours(day, hour))}
+                      onClick={() => !isBlocked && handleSlotClick(setHours(day, hour))}
                     />
                   ))}
+                  
+                  {isBlocked && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 rotate-12">
+                      <span className="text-red-600 font-black text-2xl border-4 border-red-600 p-2 uppercase tracking-tighter">Inativo</span>
+                    </div>
+                  )}
                   
                   {(() => {
                     const groupedAppointments: Record<string, Appointment[]> = {};
@@ -423,6 +455,22 @@ export default function Agenda() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center bg-muted/50 rounded-lg p-1">
+              <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
+                <SelectTrigger className="h-8 w-[180px] text-xs bg-transparent border-none shadow-none focus:ring-0">
+                  <SelectValue placeholder="Profissional" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Profissionais</SelectItem>
+                  {professionals?.filter(p => p.status === "active").map((p) => (
+                    <SelectItem key={p.id} value={p.name}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex items-center bg-muted/50 rounded-lg p-1">
               <Button
                 variant="ghost"

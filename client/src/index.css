@@ -144,6 +144,10 @@
   --sidebar-ring: 199 89% 48%;
 }
 
+.scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+}
+
 @layer base {
   * {
     @apply border-border;

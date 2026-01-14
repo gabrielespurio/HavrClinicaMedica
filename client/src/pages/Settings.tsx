@@ -414,7 +414,7 @@ export default function Settings() {
                                 onClick={() => handleUpdateSchedule(schedule, schedule.startTime, schedule.endTime, !schedule.isActive)}
                                 data-testid={`button-toggle-schedule-${schedule.id}`}
                               >
-                                <Badge variant={schedule.isActive ? "default" : "secondary"} className="cursor-pointer">
+                                <Badge variant={schedule.isActive ? "default" : "destructive"} className="cursor-pointer">
                                   {schedule.isActive ? "Ativo" : "Inativo"}
                                 </Badge>
                               </Button>

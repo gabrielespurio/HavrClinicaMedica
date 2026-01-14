@@ -291,10 +291,19 @@ export async function registerRoutes(
       const bookingDate = new Date(year, month - 1, day);
       const weekday = bookingDate.getDay();
       const allSchedules = await storage.getAllServiceSchedules();
-      const profSchedules = allSchedules.filter(s => s.professionalId === professional.id && s.weekday === weekday && s.isActive);
+      const profSchedules = allSchedules.filter(s => 
+        s.professionalId === professional.id && 
+        s.weekday === weekday
+      );
       
+      const activeProfSchedules = profSchedules.filter(s => s.isActive);
+
       if (profSchedules.length === 0) {
         return res.status(400).json({ message: "O profissional não atende neste dia da semana" });
+      }
+
+      if (activeProfSchedules.length === 0) {
+        return res.status(400).json({ message: "A escala do profissional para este dia está inativa" });
       }
 
       const parseTime = (t: string) => {
@@ -302,7 +311,7 @@ export async function registerRoutes(
         return h * 60 + m;
       };
       const bookingMinutes = parseTime(result.data.time);
-      const isWithinScale = profSchedules.some(s => {
+      const isWithinScale = activeProfSchedules.some(s => {
         const start = parseTime(s.startTime);
         const end = parseTime(s.endTime);
         return bookingMinutes >= start && bookingMinutes < end;

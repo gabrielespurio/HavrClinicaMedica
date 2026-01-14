@@ -34,11 +34,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { usePatients } from "@/hooks/usePatients";
 import { useCreateAppointment, useUpdateAppointment, type Appointment } from "@/hooks/useAppointments";
-import { useAppointmentTypes, useProfessionals } from "@/hooks/useSettings";
+import { useAppointmentTypes, useProfessionals, useServiceSchedules } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
-import { format, isBefore, getDay } from "date-fns";
+import { format, isBefore, getDay, parseISO } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Clock, AlertCircle, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, Clock, AlertCircle, Check, ChevronsUpDown, CalendarX } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +105,7 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   const { data: patients, isLoading: isLoadingPatients } = usePatients();
   const { data: appointmentTypes, isLoading: isLoadingTypes } = useAppointmentTypes();
   const { data: professionals, isLoading: isLoadingProfessionals } = useProfessionals();
+  const { data: schedules, isLoading: isLoadingSchedules } = useServiceSchedules();
   const createAppointment = useCreateAppointment();
   const updateAppointment = useUpdateAppointment();
   const { toast } = useToast();
@@ -152,6 +153,20 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   const isPending = createAppointment.isPending || updateAppointment.isPending;
 
   const businessHours = selectedDate ? getBusinessHoursForDate(selectedDate) : "";
+  
+  const isScheduleInactive = useMemo(() => {
+    if (!selectedDate || !form.getValues("professional") || !schedules || !professionals) return false;
+    
+    const prof = professionals.find(p => p.name === form.getValues("professional"));
+    if (!prof) return false;
+    
+    const date = parseISO(selectedDate);
+    const weekday = getDay(date);
+    
+    const daySchedule = schedules.find(s => s.professionalId === prof.id && s.weekday === weekday);
+    return daySchedule ? !daySchedule.isActive : false;
+  }, [selectedDate, form.watch("professional"), schedules, professionals]);
+
   const validation = selectedDate && selectedTime ? validateBusinessHours(selectedDate, selectedTime) : { valid: true, message: "" };
 
   // Reset form with proper defaults when data loads
@@ -277,7 +292,7 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
   };
 
   const isReadOnly = false;
-  const isLoading = isLoadingPatients || isLoadingTypes || isLoadingProfessionals;
+  const isLoading = isLoadingPatients || isLoadingTypes || isLoadingProfessionals || isLoadingSchedules;
 
   if (isLoading) {
     return (
@@ -424,6 +439,15 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
           </Alert>
         )}
 
+        {!isReadOnly && isScheduleInactive && (
+          <Alert variant="destructive">
+            <CalendarX className="h-4 w-4" />
+            <AlertDescription>
+              A escala do profissional para este dia da semana está <strong>Inativa</strong>. Não é possível realizar agendamentos.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <FormField
           control={form.control}
           name="status"
@@ -469,7 +493,7 @@ export function AppointmentForm({ defaultDate, appointment, onSuccess }: Appoint
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isPending || !validation.valid} 
+            disabled={isPending || !validation.valid || isScheduleInactive} 
             data-testid="button-confirm-appointment"
           >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

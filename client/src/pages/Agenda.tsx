@@ -249,8 +249,11 @@ export default function Agenda() {
     return (
       <Card className="flex flex-col h-full overflow-hidden">
         <div 
-          className="grid border-b bg-muted/20 sticky top-0 z-10 scrollbar-gutter-stable"
-          style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}
+          className="grid border-b bg-muted/20 sticky top-0 z-10"
+          style={{ 
+            gridTemplateColumns: `60px repeat(${days.length}, 1fr)`,
+            paddingRight: "var(--scrollbar-width, 0px)"
+          }}
         >
           <div className="py-3 px-2 text-center text-[10px] text-muted-foreground font-medium border-r flex items-end justify-center pb-2">
             <Clock className="h-3 w-3" />
@@ -280,7 +283,15 @@ export default function Agenda() {
           ))}
         </div>
         
-        <div className="flex-1 overflow-y-auto scrollbar-gutter-stable">
+        <div 
+          className="flex-1 overflow-y-auto"
+          ref={(el) => {
+            if (el) {
+              const scrollbarWidth = el.offsetWidth - el.clientWidth;
+              el.parentElement?.style.setProperty('--scrollbar-width', `${scrollbarWidth}px`);
+            }
+          }}
+        >
           <div className="grid" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
             <div className="border-r bg-muted/10">
               {hours.map((hour, i) => (

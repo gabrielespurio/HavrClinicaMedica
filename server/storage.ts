@@ -21,6 +21,12 @@ import {
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { format } from "date-fns";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export interface IStorage {
   // User methods
@@ -199,9 +205,10 @@ export class PostgresStorage implements IStorage {
   }
 
   async updateAppointmentStatuses(): Promise<void> {
-    const now = new Date();
-    const currentDate = format(now, "yyyy-MM-dd");
-    const currentTime = format(now, "HH:mm:ss");
+    // Usa timezone brasileiro para todas as comparações
+    const nowBrazil = dayjs().tz("America/Sao_Paulo");
+    const currentDate = nowBrazil.format("YYYY-MM-DD");
+    const currentTime = nowBrazil.format("HH:mm:ss");
 
     // 1. "Scheduled" -> "In Progress"
     // If appointment date is today AND time is <= now AND status is "scheduled"
@@ -230,15 +237,13 @@ export class PostgresStorage implements IStorage {
       // Get duration based on type name (case insensitive match)
       const duration = typeMap.get(apt.type) || 30;
       
-      // Calculate start time using the date and time from the record
-      const [year, month, day] = apt.date.split("-").map(Number);
+      // Calculate start time using Brazil timezone
       const [hours, minutes] = apt.time.split(":").map(Number);
+      const startTime = dayjs.tz(`${apt.date} ${apt.time}`, "YYYY-MM-DD HH:mm:ss", "America/Sao_Paulo");
+      const endTime = startTime.add(duration, "minute");
       
-      const startTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
-      const endTime = new Date(startTime.getTime() + duration * 60000);
-      
-      // Only transition to "attended" if now is actually PAST the end time
-      if (now >= endTime) {
+      // Only transition to "attended" if now is actually PAST the end time (in Brazil timezone)
+      if (nowBrazil.isAfter(endTime)) {
         await this.updateAppointment(apt.id, { status: "attended" });
       }
     }

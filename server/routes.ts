@@ -225,11 +225,26 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Paciente não encontrado" });
       }
 
+      // Verifica se o plano do paciente expirou
+      const today = new Date().toISOString().split('T')[0];
+      const planExpired = patient.planEndDate && patient.planEndDate < today;
+
+      if (planExpired) {
+        return res.json({
+          patient: {
+            id: patient.id,
+            name: patient.name,
+            cpf: patient.cpf,
+          },
+          planExpired: true,
+          appointments: [],
+        });
+      }
+
       // Busca agendamentos do paciente diretamente
       const patientAppointments = await storage.getAppointmentsByPatient(patient.id);
       
       // Filtra apenas agendamentos futuros com status ativo (pendentes de atendimento)
-      const today = new Date().toISOString().split('T')[0];
       const activeStatuses = ["scheduled", "confirmed", "pending", "agendado", "confirmado", "pendente"];
       const futureAppointments = patientAppointments.filter((a: any) => 
         a.date >= today && activeStatuses.includes(a.status?.toLowerCase() || '')
@@ -241,6 +256,7 @@ export async function registerRoutes(
           name: patient.name,
           cpf: patient.cpf,
         },
+        planExpired: false,
         appointments: futureAppointments.map((a: any) => ({
           id: a.id,
           date: a.date,

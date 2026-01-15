@@ -56,6 +56,7 @@ export default function OnlineBooking() {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [patient, setPatient] = useState<any>(null);
+  const [planExpired, setPlanExpired] = useState(false);
   const [existingAppointment, setExistingAppointment] = useState<ExistingAppointment | null>(null);
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
   const [pendingBooking, setPendingBooking] = useState<z.infer<typeof bookingSchema> | null>(null);
@@ -88,6 +89,11 @@ export default function OnlineBooking() {
       const res = await apiRequest("GET", `/api/agenda/paciente-por-cpf?cpf=${normalizedCpf}`);
       const data = await res.json();
       
+      // Verifica se o plano expirou
+      if (data.planExpired) {
+        return { patient: data.patient, planExpired: true, existingAppointment: null };
+      }
+      
       // Busca agendamento ativo de aplicação (qualquer tipo)
       const activeAppointment = data.appointments.find((a: any) => {
         const typeLC = (a.type || "").toLowerCase();
@@ -95,10 +101,17 @@ export default function OnlineBooking() {
         return isAplicacao;
       });
       
-      return { patient: data.patient, existingAppointment: activeAppointment || null };
+      return { patient: data.patient, planExpired: false, existingAppointment: activeAppointment || null };
     },
     onSuccess: (data) => {
       setPatient(data.patient);
+      setPlanExpired(data.planExpired);
+      
+      if (data.planExpired) {
+        // Não avança para o passo 2, fica no passo 1 mostrando mensagem de plano expirado
+        return;
+      }
+      
       setExistingAppointment(data.existingAppointment);
       
       // Não pré-selecionar o tipo - deixar o usuário escolher primeiro
@@ -252,7 +265,7 @@ export default function OnlineBooking() {
         </CardHeader>
 
         <CardContent className="pt-8">
-          {step === 1 && (
+          {step === 1 && !planExpired && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
               <div className="text-center space-y-2">
                 <h2 className="text-xl font-semibold">Identificação do Paciente</h2>
@@ -289,6 +302,38 @@ export default function OnlineBooking() {
                   </Button>
                 </form>
               </Form>
+            </div>
+          )}
+
+          {step === 1 && planExpired && patient && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+              <div className="text-center space-y-4">
+                <div className="flex justify-center">
+                  <div className="bg-red-100 p-4 rounded-full">
+                    <AlertTriangle className="w-12 h-12 text-red-600" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-semibold text-neutral-800">
+                    Olá, {patient.name}
+                  </h2>
+                  <p className="text-neutral-600 max-w-sm mx-auto">
+                    Seu plano se encerrou. Por favor, entre em contato com a secretária para renovar.
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setPlanExpired(false);
+                    setPatient(null);
+                    cpfForm.reset();
+                  }}
+                  className="mt-4"
+                  data-testid="button-try-again"
+                >
+                  Voltar
+                </Button>
+              </div>
             </div>
           )}
 

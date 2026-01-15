@@ -228,11 +228,11 @@ export async function registerRoutes(
       // Busca agendamentos do paciente diretamente
       const patientAppointments = await storage.getAppointmentsByPatient(patient.id);
       
-      // Filtra apenas agendamentos futuros com status ativo
+      // Filtra apenas agendamentos futuros com status ativo (pendentes de atendimento)
       const today = new Date().toISOString().split('T')[0];
       const activeStatuses = ["scheduled", "confirmed", "pending", "agendado", "confirmado", "pendente"];
       const futureAppointments = patientAppointments.filter((a: any) => 
-        a.date >= today && activeStatuses.includes(a.status.toLowerCase())
+        a.date >= today && activeStatuses.includes(a.status?.toLowerCase() || '')
       );
 
       res.json({

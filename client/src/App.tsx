@@ -10,6 +10,7 @@ import Patients from "@/pages/Patients";
 import Users from "@/pages/Users";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
+import OnlineBooking from "@/pages/OnlineBooking";
 
 function ProtectedRoute({ component: Component, allowedRoles }: { component: React.ComponentType; allowedRoles?: string[] }) {
   const { user, isLoading } = useAuth();
@@ -38,6 +39,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/agendamento-online" component={OnlineBooking} />
       <Route path="/login">
         {user ? <Redirect to="/" /> : <Login />}
       </Route>

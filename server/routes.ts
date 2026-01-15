@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertPatientSchema, insertAppointmentSchema, insertProfessionalSchema, insertAppointmentTypeSchema, insertServiceScheduleSchema, insertUserSchema, updateUserSchema } from "@shared/schema";
 import passport from "passport";
 import { requireAuth, requireAdmin } from "./auth";
-import { getAvailableSlots, getAppointmentsByPerson } from "./services/agendaService";
+import { getAvailableSlots, getAppointmentsByPerson, type AvailabilityResult } from "./services/agendaService";
 import { validatePatient } from "./services/patientService";
 
 // Business hours validation helper
@@ -158,6 +158,77 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       res.json({ message: "Usuário removido com sucesso" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Public Agenda routes
+  app.get("/api/agenda/disponibilidade", async (req, res, next) => {
+    try {
+      const { dataInicio, dataFim } = req.query;
+      if (!dataInicio) {
+        return res.status(400).json({ message: "Data de início é obrigatória" });
+      }
+      const slots = await getAvailableSlots(dataInicio as string, dataFim as string);
+      res.json(slots);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/agenda/agendamentos-por-pessoa", async (req, res, next) => {
+    try {
+      const { cpf, telefone } = req.query;
+      const appointments = await getAppointmentsByPerson(cpf as string, telefone as string);
+      res.json(appointments);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/pacientes/validar", async (req, res, next) => {
+    try {
+      const { cpf, telefone } = req.query;
+      const result = await validatePatient(cpf as string, telefone as string);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/agenda/agendamento-online", async (req, res, next) => {
+    try {
+      const { cpf, date, time, type } = req.body;
+      
+      if (!cpf || !date || !time || !type) {
+        return res.status(400).json({ message: "Todos os campos são obrigatórios" });
+      }
+
+      const patient = await storage.getPatientByCPF(cpf);
+      if (!patient) {
+        return res.status(404).json({ message: "Paciente não encontrado" });
+      }
+
+      const allProfessionals = await storage.getAllProfessionals();
+      const nurse = allProfessionals.find(p => p.role.toLowerCase() === "nurse" || p.name.toLowerCase().includes("enfermeira"));
+      
+      if (!nurse) {
+        return res.status(500).json({ message: "Agenda da enfermeira não configurada" });
+      }
+
+      const appointmentData = {
+        patientId: patient.id,
+        date,
+        time,
+        type,
+        professional: nurse.name,
+        status: "scheduled",
+        notes: "Agendamento realizado via portal online"
+      };
+
+      const appointment = await storage.createAppointment(appointmentData);
+      res.status(201).json(appointment);
     } catch (error) {
       next(error);
     }

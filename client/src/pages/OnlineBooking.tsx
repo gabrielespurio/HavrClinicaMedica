@@ -100,13 +100,11 @@ export default function OnlineBooking() {
       setPatient(data.patient);
       setExistingAppointment(data.existingAppointment);
       
-      if (data.existingAppointment) {
-        const aptType = data.existingAppointment.type.toLowerCase();
-        const formType = aptType.includes("tirzepatida") ? "tirzepatida" : "aplicacao";
-        bookingForm.setValue("type", formType);
-        bookingForm.setValue("date", parseISO(data.existingAppointment.date));
-        bookingForm.setValue("time", data.existingAppointment.time.slice(0, 5));
-      }
+      // Não pré-selecionar o tipo - deixar o usuário escolher primeiro
+      // O aviso de reagendamento só aparece quando o tipo coincide
+      bookingForm.setValue("type", "");
+      bookingForm.setValue("date", new Date());
+      bookingForm.setValue("time", "");
       
       setStep(2);
     },
@@ -178,7 +176,14 @@ export default function OnlineBooking() {
   };
 
   const onBookingSubmit = (values: z.infer<typeof bookingSchema>) => {
-    if (existingAppointment) {
+    // Verifica se o tipo selecionado é o mesmo do agendamento existente
+    const existingType = existingAppointment?.type?.toLowerCase() || "";
+    const isSameTypeCategory = existingAppointment && (
+      (existingType.includes("tirzepatida") && values.type === "tirzepatida") ||
+      (!existingType.includes("tirzepatida") && values.type === "aplicacao")
+    );
+    
+    if (isSameTypeCategory) {
       const existingDate = existingAppointment.date;
       const existingTime = existingAppointment.time.slice(0, 5);
       const newDate = format(values.date, "yyyy-MM-dd");
@@ -195,6 +200,7 @@ export default function OnlineBooking() {
       setPendingBooking(values);
       setShowRescheduleDialog(true);
     } else {
+      // Tipo diferente - é um novo agendamento
       bookMutation.mutate(values);
     }
   };
@@ -305,28 +311,6 @@ export default function OnlineBooking() {
                 </Button>
               </div>
 
-              {existingAppointment && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-amber-800">Você já possui um agendamento</p>
-                      <p className="text-sm text-amber-700 mt-1">
-                        {formatTypeLabel(existingAppointment.type)} em{" "}
-                        <span className="font-semibold">
-                          {format(parseISO(existingAppointment.date), "dd/MM/yyyy", { locale: ptBR })}
-                        </span>{" "}
-                        às{" "}
-                        <span className="font-semibold">{existingAppointment.time.slice(0, 5)}</span>
-                      </p>
-                      <p className="text-sm text-amber-600 mt-2">
-                        Selecione uma nova data/horário abaixo para reagendar.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <Form {...bookingForm}>
                 <form onSubmit={bookingForm.handleSubmit(onBookingSubmit)} className="space-y-8">
                   <FormField
@@ -336,9 +320,12 @@ export default function OnlineBooking() {
                       <FormItem>
                         <FormLabel>Tipo de Aplicação</FormLabel>
                         <Select 
-                          onValueChange={field.onChange} 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            // Limpa horário ao trocar tipo
+                            bookingForm.setValue("time", "");
+                          }} 
                           value={field.value}
-                          disabled={!!existingAppointment}
                         >
                           <FormControl>
                             <SelectTrigger className="h-11">
@@ -354,6 +341,37 @@ export default function OnlineBooking() {
                       </FormItem>
                     )}
                   />
+
+                  {watchType && existingAppointment && (() => {
+                    const existingType = existingAppointment.type.toLowerCase();
+                    const isSameType = 
+                      (existingType.includes("tirzepatida") && watchType === "tirzepatida") ||
+                      (!existingType.includes("tirzepatida") && watchType === "aplicacao");
+                    
+                    if (!isSameType) return null;
+                    
+                    return (
+                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-amber-800">Você já possui um agendamento deste tipo</p>
+                            <p className="text-sm text-amber-700 mt-1">
+                              {formatTypeLabel(existingAppointment.type)} em{" "}
+                              <span className="font-semibold">
+                                {format(parseISO(existingAppointment.date), "dd/MM/yyyy", { locale: ptBR })}
+                              </span>{" "}
+                              às{" "}
+                              <span className="font-semibold">{existingAppointment.time.slice(0, 5)}</span>
+                            </p>
+                            <p className="text-sm text-amber-600 mt-2">
+                              Selecione uma nova data/horário abaixo para reagendar.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {watchType && (
                     <>
@@ -470,9 +488,14 @@ export default function OnlineBooking() {
                     >
                       {bookMutation.isPending || rescheduleMutation.isPending 
                         ? "Processando..." 
-                        : existingAppointment 
-                          ? "Reagendar" 
-                          : "Confirmar Agendamento"}
+                        : (() => {
+                            const existingType = existingAppointment?.type?.toLowerCase() || "";
+                            const isReschedule = existingAppointment && (
+                              (existingType.includes("tirzepatida") && watchType === "tirzepatida") ||
+                              (!existingType.includes("tirzepatida") && watchType === "aplicacao")
+                            );
+                            return isReschedule ? "Reagendar" : "Confirmar Agendamento";
+                          })()}
                     </Button>
                   </div>
                 </form>

@@ -57,7 +57,7 @@ export default function OnlineBooking() {
   const watchDate = bookingForm.watch("date");
 
   const { data: availability, isLoading: isLoadingSlots } = useQuery<AvailabilityResult[]>({
-    queryKey: ["/api/agenda/disponibilidade", format(watchDate, "yyyy-MM-dd")],
+    queryKey: [`/api/agenda/disponibilidade?dataInicio=${format(watchDate, "yyyy-MM-dd")}`],
     enabled: !!watchDate && step === 2,
   });
 

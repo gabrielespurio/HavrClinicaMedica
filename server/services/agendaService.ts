@@ -109,8 +109,17 @@ export async function getAvailableSlots(
       // Gera slots baseados no dia da semana (sexta tem horário diferente)
       const dayTimeSlots = generateTimeSlotsForDay(weekday);
       
-      // Filtra horários livres
+      // Filtra horários livres e futuros (se for hoje)
+      const now = dayjs();
+      const isToday = currentDate.isSame(now, "day");
+      
       const availableSlots = dayTimeSlots.filter((slot) => {
+        if (isToday) {
+          const [hours, minutes] = slot.split(":").map(Number);
+          const slotTime = currentDate.hour(hours).minute(minutes).second(0);
+          if (slotTime.isBefore(now)) return false;
+        }
+        
         const key = `${dateStr}_${slot}`;
         return !occupiedSlots.has(key);
       });

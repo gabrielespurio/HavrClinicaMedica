@@ -177,6 +177,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/agenda/disponibilidade/:date", async (req, res, next) => {
+    try {
+      const { date } = req.params;
+      const slots = await getAvailableSlots(date);
+      res.json(slots);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.get("/api/agenda/agendamentos-por-pessoa", async (req, res, next) => {
     try {
       const { cpf, telefone } = req.query;

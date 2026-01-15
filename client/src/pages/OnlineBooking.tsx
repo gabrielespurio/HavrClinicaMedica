@@ -521,15 +521,6 @@ export default function OnlineBooking() {
                     : "Sua consulta foi agendada com sucesso. Você receberá uma confirmação em breve."}
                 </p>
               </div>
-              <div className="pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setLocation("/")}
-                  className="px-8"
-                >
-                  Voltar para o Início
-                </Button>
-              </div>
             </div>
           )}
         </CardContent>

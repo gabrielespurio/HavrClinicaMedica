@@ -88,11 +88,12 @@ export default function OnlineBooking() {
       const res = await apiRequest("GET", `/api/agenda/paciente-por-cpf?cpf=${normalizedCpf}`);
       const data = await res.json();
       
-      const activeAppointment = data.appointments.find((a: any) => 
-        a.status === "scheduled" && 
-        (a.type.toLowerCase() === "aplicacao" || a.type.toLowerCase() === "tirzepatida" || 
-         a.type.toLowerCase() === "aplicação" || a.type.toLowerCase() === "aplicação tirzepatida")
-      );
+      // Busca agendamento ativo de aplicação (qualquer tipo)
+      const activeAppointment = data.appointments.find((a: any) => {
+        const typeLC = (a.type || "").toLowerCase();
+        const isAplicacao = typeLC.includes("aplicac") || typeLC.includes("tirzepatida");
+        return isAplicacao;
+      });
       
       return { patient: data.patient, existingAppointment: activeAppointment || null };
     },

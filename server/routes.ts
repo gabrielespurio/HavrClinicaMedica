@@ -225,9 +225,14 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Paciente não encontrado" });
       }
 
-      const allAppointments = await storage.getAllAppointments();
-      const patientAppointments = allAppointments.filter(
-        (a: any) => a.patientId === patient.id && a.status === "scheduled"
+      // Busca agendamentos do paciente diretamente
+      const patientAppointments = await storage.getAppointmentsByPatient(patient.id);
+      
+      // Filtra apenas agendamentos futuros com status ativo
+      const today = new Date().toISOString().split('T')[0];
+      const activeStatuses = ["scheduled", "confirmed", "pending", "agendado", "confirmado", "pendente"];
+      const futureAppointments = patientAppointments.filter((a: any) => 
+        a.date >= today && activeStatuses.includes(a.status.toLowerCase())
       );
 
       res.json({
@@ -236,7 +241,7 @@ export async function registerRoutes(
           name: patient.name,
           cpf: patient.cpf,
         },
-        appointments: patientAppointments.map((a: any) => ({
+        appointments: futureAppointments.map((a: any) => ({
           id: a.id,
           date: a.date,
           time: a.time,

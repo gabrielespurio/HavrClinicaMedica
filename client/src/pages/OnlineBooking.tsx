@@ -69,7 +69,8 @@ export default function OnlineBooking() {
       
       const patientRes = await apiRequest("GET", `/api/patients`); // This is a bit hacky as we need full patient data
       const patients = await patientRes.json();
-      const found = patients.find((p: any) => p.cpf === cpf);
+      const normalizedInputCpf = cpf.replace(/\D/g, "");
+      const found = patients.find((p: any) => p.cpf.replace(/\D/g, "") === normalizedInputCpf);
       if (!found) throw new Error("Erro ao identificar paciente.");
       return found;
     },

@@ -1,6 +1,15 @@
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { storage } from "../storage";
 import type { Appointment } from "@shared/schema";
+
+// Configurar plugins para timezone
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Timezone do Brasil
+const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 
 // Horário comercial com regras específicas
 const BUSINESS_START_HOUR = 9;
@@ -156,7 +165,9 @@ export async function getAvailableSlots(
   }
 
   const results: AvailabilityResult[] = [];
-  const now = dayjs();
+  // Usa timezone brasileiro para garantir que horários passados sejam filtrados corretamente
+  const now = dayjs().tz(BRAZIL_TIMEZONE);
+  const todayBrazil = now.format("YYYY-MM-DD");
 
   // Itera por cada dia no período
   let currentDate = startDate;
@@ -169,7 +180,8 @@ export async function getAvailableSlots(
       
       // Gera slots baseados no dia da semana (sexta tem horário diferente)
       const dayTimeSlots = generateTimeSlotsForDay(weekday);
-      const isToday = currentDate.isSame(now, "day");
+      // Verifica se é hoje usando a data brasileira
+      const isToday = dateStr === todayBrazil;
       const currentMinutesNow = now.hour() * 60 + now.minute();
       
       // Filtra horários livres, futuros e sem conflitos

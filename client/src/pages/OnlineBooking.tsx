@@ -4,9 +4,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { format, addDays, isSameDay } from "date-fns";
+import { format, addDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Check, ChevronLeft, User, Clock, CalendarDays } from "lucide-react";
+import { Calendar as CalendarIcon, Check, User, Clock, CalendarDays, AlertTriangle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,28 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface AvailabilityResult {
   data: string;
   horariosDisponiveis: string[];
+}
+
+interface ExistingAppointment {
+  id: string;
+  date: string;
+  time: string;
+  type: string;
+  status: string;
 }
 
 const cpfSchema = z.object({
@@ -39,6 +56,9 @@ export default function OnlineBooking() {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [patient, setPatient] = useState<any>(null);
+  const [existingAppointment, setExistingAppointment] = useState<ExistingAppointment | null>(null);
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+  const [pendingBooking, setPendingBooking] = useState<z.infer<typeof bookingSchema> | null>(null);
 
   const cpfForm = useForm<z.infer<typeof cpfSchema>>({
     resolver: zodResolver(cpfSchema),
@@ -55,6 +75,7 @@ export default function OnlineBooking() {
   });
 
   const watchDate = bookingForm.watch("date");
+  const watchType = bookingForm.watch("type");
 
   const { data: availability, isLoading: isLoadingSlots } = useQuery<AvailabilityResult[]>({
     queryKey: [`/api/agenda/disponibilidade?dataInicio=${format(watchDate, "yyyy-MM-dd")}`],
@@ -67,15 +88,34 @@ export default function OnlineBooking() {
       const data = await res.json();
       if (!data.existe) throw new Error("Paciente não encontrado. Por favor, entre em contato com a clínica.");
       
-      const patientRes = await apiRequest("GET", `/api/patients`); // This is a bit hacky as we need full patient data
+      const patientRes = await apiRequest("GET", `/api/patients`);
       const patients = await patientRes.json();
       const normalizedInputCpf = cpf.replace(/\D/g, "");
       const found = patients.find((p: any) => p.cpf.replace(/\D/g, "") === normalizedInputCpf);
       if (!found) throw new Error("Erro ao identificar paciente.");
-      return found;
+      
+      const appointmentsRes = await apiRequest("GET", `/api/appointments?patientId=${found.id}`);
+      const appointments = await appointmentsRes.json();
+      const activeAppointment = appointments.find((a: any) => 
+        a.status === "scheduled" && 
+        (a.type.toLowerCase() === "aplicacao" || a.type.toLowerCase() === "tirzepatida" || 
+         a.type.toLowerCase() === "aplicação" || a.type.toLowerCase() === "aplicação tirzepatida")
+      );
+      
+      return { patient: found, existingAppointment: activeAppointment || null };
     },
     onSuccess: (data) => {
-      setPatient(data);
+      setPatient(data.patient);
+      setExistingAppointment(data.existingAppointment);
+      
+      if (data.existingAppointment) {
+        const aptType = data.existingAppointment.type.toLowerCase();
+        const formType = aptType.includes("tirzepatida") ? "tirzepatida" : "aplicacao";
+        bookingForm.setValue("type", formType);
+        bookingForm.setValue("date", parseISO(data.existingAppointment.date));
+        bookingForm.setValue("time", data.existingAppointment.time.slice(0, 5));
+      }
+      
       setStep(2);
     },
     onError: (error: Error) => {
@@ -112,15 +152,92 @@ export default function OnlineBooking() {
     },
   });
 
+  const rescheduleMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof bookingSchema>) => {
+      if (!existingAppointment) throw new Error("Agendamento não encontrado");
+      
+      await apiRequest("PATCH", `/api/appointments/${existingAppointment.id}/cancel`);
+      
+      return apiRequest("POST", "/api/agenda/agendamento-online", {
+        cpf: patient.cpf,
+        date: format(values.date, "yyyy-MM-dd"),
+        time: values.time,
+        type: values.type,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sucesso!",
+        description: "Seu agendamento foi reagendado com sucesso.",
+      });
+      setStep(3);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro no reagendamento",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onCpfSubmit = (values: z.infer<typeof cpfSchema>) => {
     validateCpfMutation.mutate(values.cpf);
   };
 
   const onBookingSubmit = (values: z.infer<typeof bookingSchema>) => {
-    bookMutation.mutate(values);
+    if (existingAppointment) {
+      const existingDate = existingAppointment.date;
+      const existingTime = existingAppointment.time.slice(0, 5);
+      const newDate = format(values.date, "yyyy-MM-dd");
+      const newTime = values.time;
+      
+      if (existingDate === newDate && existingTime === newTime) {
+        toast({
+          title: "Mesmo horário",
+          description: "Você selecionou o mesmo horário do seu agendamento atual.",
+        });
+        return;
+      }
+      
+      setPendingBooking(values);
+      setShowRescheduleDialog(true);
+    } else {
+      bookMutation.mutate(values);
+    }
+  };
+
+  const confirmReschedule = () => {
+    if (pendingBooking) {
+      rescheduleMutation.mutate(pendingBooking);
+    }
+    setShowRescheduleDialog(false);
   };
 
   const availableSlots = availability?.[0]?.horariosDisponiveis || [];
+  
+  const allSlots = [...availableSlots];
+  if (existingAppointment && watchType) {
+    const existingTime = existingAppointment.time.slice(0, 5);
+    const existingType = existingAppointment.type.toLowerCase();
+    const currentType = watchType.toLowerCase();
+    const existingDate = existingAppointment.date;
+    const selectedDate = format(watchDate, "yyyy-MM-dd");
+    
+    const isSameTypeCategory = 
+      (existingType.includes("tirzepatida") && currentType === "tirzepatida") ||
+      (!existingType.includes("tirzepatida") && currentType === "aplicacao");
+    
+    if (isSameTypeCategory && existingDate === selectedDate && !allSlots.includes(existingTime)) {
+      allSlots.push(existingTime);
+      allSlots.sort();
+    }
+  }
+
+  const formatTypeLabel = (type: string) => {
+    if (type.toLowerCase().includes("tirzepatida")) return "Aplicação Tirzepatida";
+    return "Aplicação";
+  };
 
   return (
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
@@ -196,6 +313,28 @@ export default function OnlineBooking() {
                 </Button>
               </div>
 
+              {existingAppointment && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-amber-800">Você já possui um agendamento</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        {formatTypeLabel(existingAppointment.type)} em{" "}
+                        <span className="font-semibold">
+                          {format(parseISO(existingAppointment.date), "dd/MM/yyyy", { locale: ptBR })}
+                        </span>{" "}
+                        às{" "}
+                        <span className="font-semibold">{existingAppointment.time.slice(0, 5)}</span>
+                      </p>
+                      <p className="text-sm text-amber-600 mt-2">
+                        Selecione uma nova data/horário abaixo para reagendar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Form {...bookingForm}>
                 <form onSubmit={bookingForm.handleSubmit(onBookingSubmit)} className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -205,7 +344,11 @@ export default function OnlineBooking() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Tipo de Aplicação</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            value={field.value}
+                            disabled={!!existingAppointment}
+                          >
                             <FormControl>
                               <SelectTrigger className="h-11">
                                 <SelectValue placeholder="Selecione o tipo" />
@@ -277,22 +420,32 @@ export default function OnlineBooking() {
                               Array.from({ length: 12 }).map((_, i) => (
                                 <div key={i} className="h-10 bg-neutral-100 animate-pulse rounded-md" />
                               ))
-                            ) : availableSlots.length > 0 ? (
-                              availableSlots.map((slot: string) => (
-                                <Button
-                                  key={slot}
-                                  type="button"
-                                  variant={field.value === slot ? "default" : "outline"}
-                                  className={cn(
-                                    "h-10 text-sm font-medium",
-                                    field.value === slot && "bg-primary text-white"
-                                  )}
-                                  onClick={() => field.onChange(slot)}
-                                  data-testid={`button-slot-${slot}`}
-                                >
-                                  {slot}
-                                </Button>
-                              ))
+                            ) : allSlots.length > 0 ? (
+                              allSlots.map((slot: string) => {
+                                const isCurrentAppointment = existingAppointment && 
+                                  existingAppointment.time.slice(0, 5) === slot &&
+                                  existingAppointment.date === format(watchDate, "yyyy-MM-dd");
+                                
+                                return (
+                                  <Button
+                                    key={slot}
+                                    type="button"
+                                    variant={field.value === slot ? "default" : "outline"}
+                                    className={cn(
+                                      "h-10 text-sm font-medium relative",
+                                      field.value === slot && "bg-primary text-white",
+                                      isCurrentAppointment && field.value !== slot && "border-amber-400 bg-amber-50 text-amber-700"
+                                    )}
+                                    onClick={() => field.onChange(slot)}
+                                    data-testid={`button-slot-${slot}`}
+                                  >
+                                    {slot}
+                                    {isCurrentAppointment && (
+                                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full" />
+                                    )}
+                                  </Button>
+                                );
+                              })
                             ) : (
                               <div className="col-span-full py-8 text-center bg-neutral-50 rounded-lg border border-dashed">
                                 <Clock className="w-8 h-8 text-neutral-300 mx-auto mb-2" />
@@ -318,10 +471,14 @@ export default function OnlineBooking() {
                     <Button 
                       type="submit" 
                       className="flex-[2] h-12 text-lg font-medium hover-elevate"
-                      disabled={bookMutation.isPending || !bookingForm.formState.isValid}
+                      disabled={bookMutation.isPending || rescheduleMutation.isPending || !bookingForm.formState.isValid}
                       data-testid="button-confirm-booking"
                     >
-                      {bookMutation.isPending ? "Agendando..." : "Confirmar Agendamento"}
+                      {bookMutation.isPending || rescheduleMutation.isPending 
+                        ? "Processando..." 
+                        : existingAppointment 
+                          ? "Reagendar" 
+                          : "Confirmar Agendamento"}
                     </Button>
                   </div>
                 </form>
@@ -337,9 +494,13 @@ export default function OnlineBooking() {
                 </div>
               </div>
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-neutral-800">Agendamento Confirmado!</h2>
+                <h2 className="text-2xl font-bold text-neutral-800">
+                  {existingAppointment ? "Reagendamento Confirmado!" : "Agendamento Confirmado!"}
+                </h2>
                 <p className="text-neutral-600 max-w-sm mx-auto">
-                  Sua consulta foi agendada com sucesso. Você receberá uma confirmação em breve.
+                  {existingAppointment 
+                    ? "Sua consulta foi reagendada com sucesso. Você receberá uma confirmação em breve."
+                    : "Sua consulta foi agendada com sucesso. Você receberá uma confirmação em breve."}
                 </p>
               </div>
               <div className="pt-4">
@@ -355,6 +516,43 @@ export default function OnlineBooking() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Reagendamento</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>Você está alterando seu agendamento:</p>
+                
+                <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                  <p className="text-sm text-red-700">
+                    <span className="font-medium">De:</span>{" "}
+                    {existingAppointment && format(parseISO(existingAppointment.date), "dd/MM/yyyy", { locale: ptBR })} às{" "}
+                    {existingAppointment?.time.slice(0, 5)}
+                  </p>
+                </div>
+                
+                <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                  <p className="text-sm text-green-700">
+                    <span className="font-medium">Para:</span>{" "}
+                    {pendingBooking && format(pendingBooking.date, "dd/MM/yyyy", { locale: ptBR })} às{" "}
+                    {pendingBooking?.time}
+                  </p>
+                </div>
+                
+                <p className="text-sm text-neutral-600">Deseja confirmar esta alteração?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmReschedule}>
+              Confirmar Reagendamento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

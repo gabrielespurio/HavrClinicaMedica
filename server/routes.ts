@@ -207,6 +207,59 @@ export async function registerRoutes(
     }
   });
 
+  // Rota pública para buscar paciente e agendamentos pelo CPF (para agendamento online)
+  app.get("/api/agenda/paciente-por-cpf", async (req, res, next) => {
+    try {
+      const { cpf } = req.query;
+      if (!cpf) {
+        return res.status(400).json({ message: "CPF é obrigatório" });
+      }
+
+      const patient = await storage.getPatientByCPF(cpf as string);
+      if (!patient) {
+        return res.status(404).json({ message: "Paciente não encontrado" });
+      }
+
+      const allAppointments = await storage.getAllAppointments();
+      const patientAppointments = allAppointments.filter(
+        (a: any) => a.patientId === patient.id && a.status === "scheduled"
+      );
+
+      res.json({
+        patient: {
+          id: patient.id,
+          name: patient.name,
+          cpf: patient.cpf,
+        },
+        appointments: patientAppointments.map((a: any) => ({
+          id: a.id,
+          date: a.date,
+          time: a.time,
+          type: a.type,
+          status: a.status,
+        })),
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Rota pública para cancelar agendamento pelo id (para reagendamento online)
+  app.patch("/api/agenda/cancelar-agendamento/:id", async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const appointment = await storage.getAppointment(id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Agendamento não encontrado" });
+      }
+
+      const updated = await storage.updateAppointment(id, { status: "cancelled" });
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/agenda/agendamento-online", async (req, res, next) => {
     try {
       const { cpf, date, time, type } = req.body;

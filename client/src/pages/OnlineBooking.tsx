@@ -84,25 +84,17 @@ export default function OnlineBooking() {
 
   const validateCpfMutation = useMutation({
     mutationFn: async (cpf: string) => {
-      const res = await apiRequest("GET", `/api/pacientes/validar?cpf=${cpf}`);
+      const normalizedCpf = cpf.replace(/\D/g, "");
+      const res = await apiRequest("GET", `/api/agenda/paciente-por-cpf?cpf=${normalizedCpf}`);
       const data = await res.json();
-      if (!data.existe) throw new Error("Paciente não encontrado. Por favor, entre em contato com a clínica.");
       
-      const patientRes = await apiRequest("GET", `/api/patients`);
-      const patients = await patientRes.json();
-      const normalizedInputCpf = cpf.replace(/\D/g, "");
-      const found = patients.find((p: any) => p.cpf.replace(/\D/g, "") === normalizedInputCpf);
-      if (!found) throw new Error("Erro ao identificar paciente.");
-      
-      const appointmentsRes = await apiRequest("GET", `/api/appointments?patientId=${found.id}`);
-      const appointments = await appointmentsRes.json();
-      const activeAppointment = appointments.find((a: any) => 
+      const activeAppointment = data.appointments.find((a: any) => 
         a.status === "scheduled" && 
         (a.type.toLowerCase() === "aplicacao" || a.type.toLowerCase() === "tirzepatida" || 
          a.type.toLowerCase() === "aplicação" || a.type.toLowerCase() === "aplicação tirzepatida")
       );
       
-      return { patient: found, existingAppointment: activeAppointment || null };
+      return { patient: data.patient, existingAppointment: activeAppointment || null };
     },
     onSuccess: (data) => {
       setPatient(data.patient);
@@ -156,7 +148,7 @@ export default function OnlineBooking() {
     mutationFn: async (values: z.infer<typeof bookingSchema>) => {
       if (!existingAppointment) throw new Error("Agendamento não encontrado");
       
-      await apiRequest("PATCH", `/api/appointments/${existingAppointment.id}/cancel`);
+      await apiRequest("PATCH", `/api/agenda/cancelar-agendamento/${existingAppointment.id}`);
       
       return apiRequest("POST", "/api/agenda/agendamento-online", {
         cpf: patient.cpf,

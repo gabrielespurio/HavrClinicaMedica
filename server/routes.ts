@@ -166,11 +166,15 @@ export async function registerRoutes(
   // Public Agenda routes
   app.get("/api/agenda/disponibilidade", async (req, res, next) => {
     try {
-      const { dataInicio, dataFim } = req.query;
+      const { dataInicio, dataFim, tipo } = req.query;
       if (!dataInicio) {
         return res.status(400).json({ message: "Data de início é obrigatória" });
       }
-      const slots = await getAvailableSlots(dataInicio as string, dataFim as string);
+      const slots = await getAvailableSlots(
+        dataInicio as string, 
+        dataFim as string,
+        tipo as string
+      );
       res.json(slots);
     } catch (error) {
       next(error);
@@ -180,7 +184,8 @@ export async function registerRoutes(
   app.get("/api/agenda/disponibilidade/:date", async (req, res, next) => {
     try {
       const { date } = req.params;
-      const slots = await getAvailableSlots(date);
+      const { tipo } = req.query;
+      const slots = await getAvailableSlots(date, undefined, tipo as string);
       res.json(slots);
     } catch (error) {
       next(error);

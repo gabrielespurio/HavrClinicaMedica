@@ -78,8 +78,8 @@ export default function OnlineBooking() {
   const watchType = bookingForm.watch("type");
 
   const { data: availability, isLoading: isLoadingSlots } = useQuery<AvailabilityResult[]>({
-    queryKey: [`/api/agenda/disponibilidade?dataInicio=${format(watchDate, "yyyy-MM-dd")}`],
-    enabled: !!watchDate && step === 2,
+    queryKey: [`/api/agenda/disponibilidade?dataInicio=${format(watchDate, "yyyy-MM-dd")}&tipo=${watchType}`],
+    enabled: !!watchDate && !!watchType && step === 2,
   });
 
   const validateCpfMutation = useMutation({

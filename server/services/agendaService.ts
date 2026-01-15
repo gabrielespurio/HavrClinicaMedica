@@ -10,6 +10,15 @@ const SLOT_INTERVAL_MINUTES = 30;
 // Inclui variações em português e inglês usadas no sistema
 const BLOCKING_STATUSES = ["scheduled", "confirmed", "completed", "pending", "agendado", "confirmado", "concluido", "pendente"];
 
+// Mapeamento de tipos para buscar configuração
+const TYPE_SLUG_MAP: Record<string, string> = {
+  "aplicacao": "aplicacao",
+  "tirzepatida": "tirzepatida",
+  "aplicacao_tirzepatida": "tirzepatida",
+  "consulta": "consulta",
+  "retorno": "retorno"
+};
+
 /**
  * Retorna o horário de encerramento baseado no dia da semana
  * Segunda a Quinta: 18:00
@@ -47,21 +56,57 @@ function isWeekday(date: dayjs.Dayjs): boolean {
 }
 
 /**
- * Retorna os horários ocupados de uma lista de agendamentos
- * Apenas considera agendamentos com status ativo (não cancelados)
+ * Converte horário HH:mm para minutos do dia
  */
-function getOccupiedSlots(appointments: Appointment[]): Set<string> {
-  const occupied = new Set<string>();
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + (minutes || 0);
+}
+
+/**
+ * Verifica se dois intervalos de tempo se sobrepõem
+ */
+function intervalsOverlap(
+  start1: number, end1: number,
+  start2: number, end2: number
+): boolean {
+  return start1 < end2 && start2 < end1;
+}
+
+interface OccupiedInterval {
+  date: string;
+  startMinutes: number;
+  endMinutes: number;
+}
+
+/**
+ * Retorna os intervalos ocupados de uma lista de agendamentos
+ * Considera a duração de cada tipo de atendimento
+ */
+async function getOccupiedIntervals(appointments: Appointment[]): Promise<OccupiedInterval[]> {
+  const intervals: OccupiedInterval[] = [];
+  const appointmentTypes = await storage.getAllAppointmentTypes();
+  const typeMap = new Map(appointmentTypes.map(t => [t.name.toLowerCase(), t.durationMinutes]));
+  
   for (const apt of appointments) {
     // Ignora agendamentos cancelados ou no-show
     if (!BLOCKING_STATUSES.includes(apt.status.toLowerCase())) {
       continue;
     }
-    // Normaliza o horário para HH:mm
-    const time = apt.time.slice(0, 5);
-    occupied.add(`${apt.date}_${time}`);
+    
+    const startMinutes = timeToMinutes(apt.time.slice(0, 5));
+    const typeKey = TYPE_SLUG_MAP[apt.type.toLowerCase()] || apt.type.toLowerCase();
+    const duration = typeMap.get(typeKey) || typeMap.get(apt.type.toLowerCase()) || 30;
+    const endMinutes = startMinutes + duration;
+    
+    intervals.push({
+      date: apt.date,
+      startMinutes,
+      endMinutes
+    });
   }
-  return occupied;
+  
+  return intervals;
 }
 
 export interface AvailabilityResult {
@@ -72,10 +117,14 @@ export interface AvailabilityResult {
 /**
  * Consulta horários disponíveis em um período
  * Se apenas dataInicio for informada, retorna horários desse dia
+ * @param dataInicio - Data inicial (YYYY-MM-DD)
+ * @param dataFim - Data final opcional (YYYY-MM-DD)
+ * @param tipo - Tipo de atendimento para calcular duração
  */
 export async function getAvailableSlots(
   dataInicio: string,
-  dataFim?: string
+  dataFim?: string,
+  tipo?: string
 ): Promise<AvailabilityResult[]> {
   const startDate = dayjs(dataInicio);
   const endDate = dataFim ? dayjs(dataFim) : startDate;
@@ -94,8 +143,20 @@ export async function getAvailableSlots(
     endDate.format("YYYY-MM-DD")
   );
 
-  const occupiedSlots = getOccupiedSlots(appointments);
+  // Obtém intervalos ocupados considerando duração de cada tipo
+  const occupiedIntervals = await getOccupiedIntervals(appointments);
+  
+  // Obtém a duração do tipo de atendimento solicitado
+  let requestedDuration = 30;
+  if (tipo) {
+    const typeSlug = TYPE_SLUG_MAP[tipo.toLowerCase()] || tipo.toLowerCase();
+    const appointmentTypes = await storage.getAllAppointmentTypes();
+    const typeConfig = appointmentTypes.find(t => t.name.toLowerCase() === typeSlug);
+    requestedDuration = typeConfig?.durationMinutes || 30;
+  }
+
   const results: AvailabilityResult[] = [];
+  const now = dayjs();
 
   // Itera por cada dia no período
   let currentDate = startDate;
@@ -108,20 +169,26 @@ export async function getAvailableSlots(
       
       // Gera slots baseados no dia da semana (sexta tem horário diferente)
       const dayTimeSlots = generateTimeSlotsForDay(weekday);
-      
-      // Filtra horários livres e futuros (se for hoje)
-      const now = dayjs();
       const isToday = currentDate.isSame(now, "day");
+      const currentMinutesNow = now.hour() * 60 + now.minute();
       
+      // Filtra horários livres, futuros e sem conflitos
       const availableSlots = dayTimeSlots.filter((slot) => {
-        if (isToday) {
-          const [hours, minutes] = slot.split(":").map(Number);
-          const slotTime = currentDate.hour(hours).minute(minutes).second(0);
-          if (slotTime.isBefore(now)) return false;
+        const slotStartMinutes = timeToMinutes(slot);
+        const slotEndMinutes = slotStartMinutes + requestedDuration;
+        
+        // Se for hoje, exclui horários que já passaram
+        if (isToday && slotStartMinutes <= currentMinutesNow) {
+          return false;
         }
         
-        const key = `${dateStr}_${slot}`;
-        return !occupiedSlots.has(key);
+        // Verifica se há conflito com algum intervalo ocupado
+        const dayIntervals = occupiedIntervals.filter(i => i.date === dateStr);
+        const hasConflict = dayIntervals.some(interval => 
+          intervalsOverlap(slotStartMinutes, slotEndMinutes, interval.startMinutes, interval.endMinutes)
+        );
+        
+        return !hasConflict;
       });
 
       results.push({

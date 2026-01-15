@@ -19,7 +19,7 @@ import {
   serviceSchedules,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { format } from "date-fns";
 
 export interface IStorage {
@@ -119,7 +119,10 @@ export class PostgresStorage implements IStorage {
   }
 
   async getPatientByCPF(cpf: string): Promise<Patient | undefined> {
-    const result = await db.select().from(patients).where(eq(patients.cpf, cpf)).limit(1);
+    const normalizedCpf = cpf.replace(/\D/g, "");
+    const result = await db.select().from(patients).where(
+      sql`replace(replace(replace(${patients.cpf}, '.', ''), '-', ''), '/', '') = ${normalizedCpf}`
+    ).limit(1);
     return result[0];
   }
 
